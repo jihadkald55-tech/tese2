@@ -165,6 +165,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
 export function useUser() {
   const context = useContext(UserContext)
   if (context === undefined) {
+    // Return default values during SSR/build time
+    if (typeof window === 'undefined') {
+      return {
+        user: null,
+        login: () => false,
+        logout: () => {},
+        register: () => false,
+        updateUser: () => {},
+        isAuthenticated: false,
+      }
+    }
     throw new Error('useUser must be used within a UserProvider')
   }
   return context

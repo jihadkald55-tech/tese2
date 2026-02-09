@@ -5,11 +5,6 @@ import { Menu } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
-// Force dynamic rendering for all dashboard routes
-export const dynamic = 'force-dynamic'
-export const dynamicParams = true
-export const revalidate = 0
-
 export default function DashboardLayout({
   children,
 }: {
