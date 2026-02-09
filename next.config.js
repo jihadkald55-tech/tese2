@@ -1,18 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // RTL support is handled via Tailwind and HTML dir="rtl"
+  // Force dynamic rendering - disable static generation completely
   experimental: {
-    // Disable static page generation for dynamic routes
-    isrMemoryCacheSize: 0,
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
-  // Disable static optimization to prevent build errors with context providers
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // Disable static page generation in production build
+  output: undefined, // Use default server output, not export
 }
 
 module.exports = nextConfig
