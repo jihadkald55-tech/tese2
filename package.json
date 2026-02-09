@@ -1,0 +1,36 @@
+{
+  "name": "medad-research-system",
+  "version": "1.0.0",
+  "description": "مداد - نظام إدارة أبحاث التخرج",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.39.3",
+    "docx": "^9.5.1",
+    "file-saver": "^2.0.5",
+    "framer-motion": "^11.0.3",
+    "jspdf": "^4.1.0",
+    "lucide-react": "^0.314.0",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^20.11.5",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.1.0",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3"
+  }
+}

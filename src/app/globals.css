@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* استيراد الخطوط العربية من Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  body {
+    @apply bg-white text-medad-ink font-arabic;
+    direction: rtl;
+    text-align: right;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  /* Dark Mode */
+  .dark body {
+    @apply bg-dark-bg text-dark-text;
+  }
+}
+
+@layer components {
+  /* أزرار بأسلوب Google */
+  .btn-primary {
+    @apply bg-primary-600 text-white px-6 py-2.5 rounded-google font-medium 
+           hover:bg-primary-700 transition-all duration-200 shadow-google
+           hover:shadow-google-lg active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-medad-ink px-6 py-2.5 rounded-google font-medium 
+           border border-medad-border hover:bg-medad-hover transition-all duration-200 
+           shadow-google hover:shadow-google-lg active:scale-95;
+  }
+
+  /* حقول الإدخال */
+  .input-field {
+    @apply w-full px-4 py-3 border border-medad-border rounded-google
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-all duration-200 bg-white text-medad-ink;
+  }
+
+  .dark .input-field {
+    @apply bg-dark-card border-dark-border text-dark-text;
+  }
+
+  /* البطاقات */
+  .card {
+    @apply bg-white rounded-google shadow-google border border-medad-border
+           hover:shadow-google-lg transition-all duration-200;
+  }
+
+  .dark .card {
+    @apply bg-dark-card border-dark-border shadow-dark;
+  }
+
+  /* الشريط الجانبي */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-google cursor-pointer
+           text-gray-600 hover:bg-medad-hover transition-all duration-200;
+  }
+
+  .dark .sidebar-item {
+    @apply text-dark-text hover:bg-dark-hover;
+  }
+
+  .sidebar-item-active {
+    @apply flex items-center gap-3 px-4 py-3 rounded-google cursor-pointer
+           bg-primary-50 text-primary-600 font-medium transition-all duration-200;
+  }
+
+  .dark .sidebar-item-active {
+    @apply bg-primary-900/30 text-primary-400;
+  }
+}
+
+/* تأثيرات الحركة */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* تحسينات RTL */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Scrollbar مخصص */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #444444;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #666666;
+}
