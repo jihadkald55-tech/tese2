@@ -18,39 +18,55 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { useUser } from '@/contexts/UserContext'
+import { loadUserData } from '@/lib/userDataManager'
 
 export default function DashboardPage() {
   const { user } = useUser()
   const router = useRouter()
   const [researchStats, setResearchStats] = useState({
     wordCount: 0,
-    sourcesCount: 0
+    sourcesCount: 0,
+    progress: 0 // ✅ حساب ديناميكي
   })
 
+  // ✅ تحميل إحصائيات البحث الحقيقية للمستخدم الحالي
   useEffect(() => {
-    // تحميل إحصائيات البحث من localStorage
-    const savedResearch = localStorage.getItem('currentResearch')
-    const savedSources = localStorage.getItem('researchSources')
+    if (!user?.id) return
     
-    if (savedResearch) {
-      try {
-        const data = JSON.parse(savedResearch)
-        const wordCount = data.wordCount || 0
-        setResearchStats(prev => ({ ...prev, wordCount }))
-      } catch (error) {
-        console.error('Error loading research stats:', error)
-      }
+    // تحميل محتوى البحث
+    const research = loadUserData<any>(user.id, 'research')
+    const wordCount = research?.wordCount || 0
+    
+    // تحميل المصادر
+    const sources = loadUserData<any[]>(user.id, 'sources') || []
+    const sourcesCount = sources.length
+    
+    // ✅ حساب نسبة التقدم بشكل واقعي
+    let calculatedProgress = 0
+    
+    // 40% - عدد الكلمات (الهدف: 10000 كلمة)
+    if (wordCount > 0) {
+      calculatedProgress += Math.min(40, (wordCount / 10000) * 40)
     }
     
-    if (savedSources) {
-      try {
-        const sources = JSON.parse(savedSources)
-        setResearchStats(prev => ({ ...prev, sourcesCount: sources.length || 0 }))
-      } catch (error) {
-        console.error('Error loading sources stats:', error)
-      }
+    // 30% - عدد المصادر (الهدف: 15 مصدر)
+    if (sourcesCount > 0) {
+      calculatedProgress += Math.min(30, (sourcesCount / 15) * 30)
     }
-  }, [])
+    
+    // 30% - إكمال المهام في الجدول الزمني
+    const schedule = loadUserData<any[]>(user.id, 'schedule') || []
+    if (schedule.length > 0) {
+      const completed = schedule.filter((e: any) => e.completed).length
+      calculatedProgress += (completed / schedule.length) * 30
+    }
+    
+    setResearchStats({
+      wordCount,
+      sourcesCount,
+      progress: Math.round(calculatedProgress)
+    })
+  }, [user?.id])
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -95,10 +111,10 @@ export default function DashboardPage() {
     {
       id: 3,
       title: 'التقدم',
-      value: '65%',
+      value: `${researchStats.progress}%`,
       icon: Target,
       color: 'from-green-500 to-green-600',
-      change: '+15% هذا الشهر',
+      change: researchStats.progress > 0 ? `${researchStats.progress}% من المشروع` : 'لم تبدأ بعد',
       link: '/dashboard/progress'
     },
     {

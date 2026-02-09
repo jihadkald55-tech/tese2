@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { initializeNewUser, cleanupLegacyData } from '@/lib/userDataManager'
 
 export type UserRole = 'student' | 'professor' | 'admin'
 
@@ -34,6 +35,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setMounted(true)
     // تحميل بيانات المستخدم من localStorage
     if (typeof window === 'undefined') return
+    
+    // تنظيف البيانات القديمة غير المعزولة (مرة واحدة)
+    const hasCleanedUp = localStorage.getItem('data_cleanup_done')
+    if (!hasCleanedUp) {
+      cleanupLegacyData()
+      localStorage.setItem('data_cleanup_done', 'true')
+    }
+    
     const savedUser = localStorage.getItem('currentUser')
     if (savedUser) {
       try {
@@ -59,48 +68,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return true
     }
 
-    // إذا لم يوجد المستخدم، إنشاء مستخدمين افتراضيين
-    if (users.length === 0) {
-      const defaultUsers = [
-        {
-          id: 'prof-1',
-          name: 'د. محمد العلي',
-          email: 'prof@university.edu',
-          password: '123456',
-          role: 'professor',
-          department: 'علوم الحاسوب',
-          students: ['student-1']
-        },
-        {
-          id: 'student-1',
-          name: 'أحمد محمد',
-          email: 'student@university.edu',
-          password: '123456',
-          role: 'student',
-          department: 'هندسة البرمجيات',
-          supervisorId: 'prof-1'
-        },
-        {
-          id: 'admin-1',
-          name: 'إدارة النظام',
-          email: 'admin@university.edu',
-          password: '123456',
-          role: 'admin'
-        }
-      ]
-      localStorage.setItem('users', JSON.stringify(defaultUsers))
-      
-      const tryAgain = defaultUsers.find((u: any) => 
-        u.email === email && u.password === password && u.role === role
-      )
-      if (tryAgain) {
-        const { password: _, ...userWithoutPassword } = tryAgain
-        setUser(userWithoutPassword as User)
-        localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword))
-        return true
-      }
-    }
-
+    // ✅ حُذف: لا مستخدمين افتراضيين
+    // المستخدمون الحقيقيون فقط يمكنهم تسجيل الدخول
+    
     return false
   }
 
@@ -117,7 +87,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       id: `${role}-${Date.now()}`,
       name,
       email,
-      password,
+      password, // ⚠️ TODO: يجب hash في بيئة إنتاج حقيقية
       role,
       ...(role === 'student' && { supervisorId: undefined, department: '' }),
       ...(role === 'professor' && { students: [], department: '' })
@@ -129,6 +99,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const { password: _, ...userWithoutPassword } = newUser
     setUser(userWithoutPassword as User)
     localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword))
+    
+    // ✅ تهيئة بيانات المستخدم الجديد (فارغة)
+    initializeNewUser(newUser.id)
+    
     return true
   }
 

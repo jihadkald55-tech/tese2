@@ -17,52 +17,36 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { useUser } from '@/contexts/UserContext'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
 
 export default function SchedulePage() {
   const router = useRouter()
+  const { user } = useUser()
   const { addNotification } = useNotifications()
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [events, setEvents] = useState<any[]>([])
 
-  const events = [
-    {
-      id: 1,
-      title: 'اجتماع مع المشرف',
-      date: '2026-02-15',
-      time: '2:00 م - 3:00 م',
-      type: 'meeting',
-      location: 'قاعة 301',
-      attendees: ['د. محمد العلي'],
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      id: 2,
-      title: 'تسليم الفصل الثالث',
-      date: '2026-02-20',
-      time: '11:59 م',
-      type: 'deadline',
-      color: 'from-red-500 to-red-600'
-    },
-    {
-      id: 3,
-      title: 'ورشة عمل: كتابة الأبحاث',
-      date: '2026-02-22',
-      time: '10:00 ص - 12:00 م',
-      type: 'workshop',
-      location: 'عبر الإنترنت',
-      attendees: ['جميع الطلاب'],
-      color: 'from-green-500 to-green-600'
-    },
-    {
-      id: 4,
-      title: 'مراجعة منتصف المدة',
-      date: '2026-02-25',
-      time: '3:00 م - 4:30 م',
-      type: 'review',
-      location: 'مكتب المشرف',
-      attendees: ['د. محمد العلي', 'لجنة المراجعة'],
-      color: 'from-purple-500 to-purple-600'
+  // ✅ تحميل الأحداث للمستخدم الحالي فقط
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const userSchedule = loadUserData<any[]>(user.id, 'schedule')
+    if (userSchedule && userSchedule.length > 0) {
+      setEvents(userSchedule)
+    } else {
+      // ✅ مستخدم جديد = جدول فارغ (لا أحداث وهمية)
+      setEvents([])
     }
-  ]
+  }, [user?.id])
+
+  // ✅ حفظ الأحداث للمستخدم الحالي فقط
+  useEffect(() => {
+    if (!user?.id) return
+    if (events.length >= 0) {
+      saveUserData(user.id, 'schedule', events)
+    }
+  }, [events, user?.id])
 
   const upcomingEvents = events
     .filter(e => new Date(e.date) >= new Date())

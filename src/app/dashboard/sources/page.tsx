@@ -23,6 +23,8 @@ import {
   Loader2,
   ArrowRight
 } from 'lucide-react'
+import { useUser } from '@/contexts/UserContext'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
 
 interface Source {
   id: number
@@ -39,6 +41,7 @@ interface Source {
 
 export default function SourcesPage() {
   const router = useRouter()
+  const { user } = useUser()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -63,77 +66,29 @@ export default function SourcesPage() {
     citations: 0
   })
 
-  // تحميل المصادر من localStorage
+  // ✅ تحميل المصادر للمستخدم الحالي فقط
   useEffect(() => {
-    const savedSources = localStorage.getItem('researchSources')
-    if (savedSources) {
-      try {
-        setSources(JSON.parse(savedSources))
-      } catch (error) {
-        console.error('Error loading sources:', error)
-        initializeDefaultSources()
-      }
+    if (!user?.id) return
+    
+    const userSources = loadUserData<Source[]>(user.id, 'sources')
+    if (userSources && userSources.length > 0) {
+      setSources(userSources)
     } else {
-      initializeDefaultSources()
+      // ✅ مستخدم جديد = قائمة فارغة (لا مصادر وهمية)
+      setSources([])
     }
-  }, [])
+  }, [user?.id])
 
-  // حفظ المصادر في localStorage
+  // ✅ حفظ المصادر للمستخدم الحالي فقط
   useEffect(() => {
-    if (sources.length > 0) {
-      const sourcesToSave = sources.map(source => ({
-        ...source,
-        file: undefined // لا نحفظ الملف في localStorage
-      }))
-      localStorage.setItem('researchSources', JSON.stringify(sourcesToSave))
-    }
-  }, [sources])
-
-  const initializeDefaultSources = () => {
-    const defaultSources: Source[] = [
-      {
-        id: 1,
-        title: 'الذكاء الاصطناعي في التعليم',
-        type: 'pdf',
-        size: '2.4 MB',
-        pages: 245,
-        uploadDate: '2026-01-15',
-        citations: 12,
-        color: 'from-red-500 to-red-600'
-      },
-      {
-        id: 2,
-        title: 'Machine Learning Fundamentals',
-        type: 'pdf',
-        size: '3.1 MB',
-        pages: 180,
-        uploadDate: '2026-01-20',
-        citations: 8,
-        color: 'from-blue-500 to-blue-600'
-      },
-      {
-        id: 3,
-        title: 'دراسة تطبيقية على التعليم الإلكتروني',
-        type: 'docx',
-        size: '1.2 MB',
-        pages: 45,
-        uploadDate: '2026-02-01',
-        citations: 5,
-        color: 'from-green-500 to-green-600'
-      },
-      {
-        id: 4,
-        title: 'Educational Technology Trends 2025',
-        type: 'pdf',
-        size: '4.5 MB',
-        pages: 320,
-        uploadDate: '2026-02-05',
-        citations: 15,
-        color: 'from-purple-500 to-purple-600'
-      }
-    ]
-    setSources(defaultSources)
-  }
+    if (!user?.id) return
+    
+    const sourcesToSave = sources.map(source => ({
+      ...source,
+      file: undefined // لا نحفظ الملف في localStorage
+    }))
+    saveUserData(user.id, 'sources', sourcesToSave)
+  }, [sources, user?.id])
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()

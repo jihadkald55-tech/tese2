@@ -1,6 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
+import { useUser } from './UserContext'
 
 export interface Notification {
   id: string
@@ -25,71 +27,34 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { user } = useUser()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [mounted, setMounted] = useState(false)
 
-  // تحميل الإشعارات من localStorage
+  // تحميل الإشعارات من localStorage للمستخدم الحالي فقط
   useEffect(() => {
     setMounted(true)
-    if (typeof window === 'undefined') return
-    const saved = localStorage.getItem('notifications')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        setNotifications(parsed)
-        setUnreadCount(parsed.filter((n: Notification) => !n.read).length)
-      } catch (error) {
-        console.error('Error loading notifications:', error)
-      }
+    if (typeof window === 'undefined' || !user?.id) return
+    
+    const userNotifications = loadUserData<Notification[]>(user.id, 'notifications')
+    if (userNotifications && userNotifications.length > 0) {
+      setNotifications(userNotifications)
+      setUnreadCount(userNotifications.filter((n: Notification) => !n.read).length)
+    } else {
+      // ✅ مستخدم جديد = لا إشعارات (وليس إشعارات وهمية)
+      setNotifications([])
+      setUnreadCount(0)
     }
+  }, [user?.id])
 
-    // إنشاء إشعارات تجريبية في أول مرة
-    const hasInitialized = localStorage.getItem('notificationsInitialized')
-    if (!hasInitialized) {
-      const demoNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'message',
-          title: 'رسالة جديدة',
-          message: 'المشرف أرسل لك رسالة حول البحث',
-          timestamp: new Date().toISOString(),
-          read: false,
-          link: '/dashboard/chat'
-        },
-        {
-          id: '2',
-          type: 'deadline',
-          title: 'موعد نهائي قريب',
-          message: 'تبقى 3 أيام على موعد تسليم الفصل الأول',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          read: false,
-          link: '/dashboard/schedule'
-        },
-        {
-          id: '3',
-          type: 'research',
-          title: 'تم الحفظ التلقائي',
-          message: 'تم حفظ بحثك تلقائياً',
-          timestamp: new Date(Date.now() - 7200000).toISOString(),
-          read: true,
-          link: '/dashboard/research'
-        }
-      ]
-      setNotifications(demoNotifications)
-      setUnreadCount(2)
-      localStorage.setItem('notifications', JSON.stringify(demoNotifications))
-      localStorage.setItem('notificationsInitialized', 'true')
-    }
-  }, [])
-
-  // حفظ الإشعارات في localStorage
+  // حفظ الإشعارات في localStorage للمستخدم الحالي
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (notifications.length > 0) {
-      localStorage.setItem('notifications', JSON.stringify(notifications))
+    if (typeof window === 'undefined' || !user?.id) return
+    if (notifications.length > 0 || mounted) {
+      saveUserData(user.id, 'notifications', notifications)
     }
-  }, [notifications])
+  }, [notifications, user?.id, mounted])
 
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {

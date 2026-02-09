@@ -20,6 +20,8 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useUser } from '@/contexts/UserContext'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
 
 interface UserSettings {
   firstName: string
@@ -40,6 +42,7 @@ interface UserSettings {
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { user: currentUser } = useUser()
   const [activeTab, setActiveTab] = useState('profile')
   const [showPassword, setShowPassword] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -68,17 +71,22 @@ export default function SettingsPage() {
     confirm: ''
   })
 
-  // Load settings from localStorage
+  // ✅ Load settings للمستخدم الحالي فقط
   useEffect(() => {
-    const savedSettings = localStorage.getItem('userSettings')
-    if (savedSettings) {
-      try {
-        setSettings(JSON.parse(savedSettings))
-      } catch (error) {
-        console.error('Error loading settings:', error)
-      }
+    if (!currentUser?.id) return
+    
+    const userSettings = loadUserData<any>(currentUser.id, 'settings')
+    if (userSettings) {
+      setSettings(userSettings)
     }
-  }, [])
+    // إذا لم يوجد إعدادات، يتم استخدام القيم الافتراضية من useState
+  }, [currentUser?.id])
+
+  // ✅ Save settings للمستخدم الحالي عند التغيير
+  useEffect(() => {
+    if (!currentUser?.id) return
+    saveUserData(currentUser.id, 'settings', settings)
+  }, [settings, currentUser?.id])
 
   // Apply font size setting
   useEffect(() => {

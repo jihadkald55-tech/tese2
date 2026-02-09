@@ -29,6 +29,7 @@ import {
 import { useUser, type User } from '@/contexts/UserContext'
 import UserSearchModal from '@/components/UserSearchModal'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
 
 type ContactType = 'supervisor' | 'assistant' | 'group' | 'student'
 type MessageStatus = 'sent' | 'delivered' | 'read'

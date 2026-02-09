@@ -29,9 +29,19 @@ import jsPDF from 'jspdf'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import { saveAs } from 'file-saver'
 import { useNotifications } from '@/contexts/NotificationContext'
+import { useUser } from '@/contexts/UserContext'
+import { saveUserData, loadUserData } from '@/lib/userDataManager'
+
+interface ResearchData {
+  title: string
+  content: string
+  wordCount: number
+  lastSaved: string
+}
 
 export default function ResearchPage() {
   const router = useRouter()
+  const { user } = useUser()
   const { addNotification } = useNotifications()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [content, setContent] = useState('')
@@ -43,20 +53,22 @@ export default function ResearchPage() {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false)
   const downloadMenuRef = useRef<HTMLDivElement>(null)
 
-  // تحميل المحتوى المحفوظ عند بدء الصفحة
+  // ✅ تحميل المحتوى المحفوظ للمستخدم الحالي فقط
   useEffect(() => {
-    const savedResearch = localStorage.getItem('currentResearch')
+    if (!user?.id) return
+    
+    const savedResearch = loadUserData<ResearchData>(user.id, 'research')
     if (savedResearch) {
-      try {
-        const data = JSON.parse(savedResearch)
-        setContent(data.content || '')
-        setWordCount(data.content?.trim().split(/\s+/).filter(Boolean).length || 0)
-        setLastSaved(data.lastSaved ? new Date(data.lastSaved) : null)
-      } catch (error) {
-        console.error('Error loading research:', error)
-      }
+      setContent(savedResearch.content || '')
+      setWordCount(savedResearch.content?.trim().split(/\s+/).filter(Boolean).length || 0)
+      setLastSaved(savedResearch.lastSaved ? new Date(savedResearch.lastSaved) : null)
+    } else {
+      // ✅ مستخدم جديد = محتوى فارغ
+      setContent('')
+      setWordCount(0)
+      setLastSaved(null)
     }
-  }, [])
+  }, [user?.id])
 
   // إغلاق قائمة التحميل عند النقر خارجها
   useEffect(() => {
@@ -71,16 +83,19 @@ export default function ResearchPage() {
   }, [])
 
   const handleSave = useCallback((silent = false) => {
+    if (!user?.id) return
+    
     if (!silent) setIsSaving(true)
     
-    const researchData = {
-      title: 'تطبيقات الذكاء الاصطناعي في التعليم',
+    const researchData: ResearchData = {
+      title: 'بحثي',
       content: content,
       wordCount: wordCount,
       lastSaved: new Date().toISOString()
     }
     
-    localStorage.setItem('currentResearch', JSON.stringify(researchData))
+    // ✅ حفظ للمستخدم الحالي فقط
+    saveUserData(user.id, 'research', researchData)
     setLastSaved(new Date())
     
     if (!silent) {
@@ -98,7 +113,7 @@ export default function ResearchPage() {
         })
       }, 500)
     }
-  }, [content, wordCount])
+  }, [content, wordCount, user?.id, addNotification])
 
   // حفظ تلقائي كل 30 ثانية
   useEffect(() => {
