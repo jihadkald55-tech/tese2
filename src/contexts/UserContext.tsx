@@ -28,9 +28,12 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     // تحميل بيانات المستخدم من localStorage
+    if (typeof window === 'undefined') return
     const savedUser = localStorage.getItem('currentUser')
     if (savedUser) {
       try {
@@ -43,6 +46,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const login = (email: string, password: string, role: UserRole): boolean => {
     // التحقق من المستخدمين المسجلين
+    if (typeof window === 'undefined') return false
     const users = JSON.parse(localStorage.getItem('users') || '[]')
     const foundUser = users.find((u: any) => 
       u.email === email && u.password === password && u.role === role
@@ -101,6 +105,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   const register = (name: string, email: string, password: string, role: UserRole): boolean => {
+    if (typeof window === 'undefined') return false
     const users = JSON.parse(localStorage.getItem('users') || '[]')
     
     // التحقق من عدم وجود المستخدم
@@ -128,11 +133,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    if (typeof window === 'undefined') return
     setUser(null)
     localStorage.removeItem('currentUser')
   }
 
   const updateUser = (userData: Partial<User>) => {
+    if (typeof window === 'undefined') return
     if (user) {
       const updatedUser = { ...user, ...userData }
       setUser(updatedUser)

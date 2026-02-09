@@ -27,9 +27,12 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [mounted, setMounted] = useState(false)
 
   // تحميل الإشعارات من localStorage
   useEffect(() => {
+    setMounted(true)
+    if (typeof window === 'undefined') return
     const saved = localStorage.getItem('notifications')
     if (saved) {
       try {
@@ -82,6 +85,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // حفظ الإشعارات في localStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return
     if (notifications.length > 0) {
       localStorage.setItem('notifications', JSON.stringify(notifications))
     }
