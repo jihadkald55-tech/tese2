@@ -25,14 +25,18 @@ export interface User {
 
 interface UserContextType {
   user: User | null;
-  login: (email: string, password: string, role?: UserRole) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+    role?: UserRole,
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   register: (
     name: string,
     email: string,
     password: string,
     role: UserRole,
-  ) => Promise<boolean>;
+  ) => Promise<{ success: boolean; error?: string }>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
@@ -45,7 +49,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // تحميل بيانات المستخدم من قاعدة البيانات
-  const loadUserData = async (authUser: SupabaseUser) => {
+  const loadUserData = async (authUser: SupabaseUser): Promise<boolean> => {
     try {
       const { data, error } = await supabase
         .from("users")
@@ -53,7 +57,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         .eq("id", authUser.id)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
         setUser({
@@ -62,9 +66,46 @@ export function UserProvider({ children }: { children: ReactNode }) {
           email: data.email,
           role: data.user_type as UserRole,
         });
+        return true;
+      } else {
+        // المستخدم موجود في Auth ولكن غير موجود في جدول users
+        console.warn(
+          "User in Auth but missing in public.users. Creating record...",
+        );
+
+        const { error: insertError } = await supabase.from("users").insert({
+          id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata.name || "مستخدم",
+          user_type: authUser.user_metadata.user_type || "student",
+        });
+
+        if (insertError) {
+          console.error("Failed to create user record:", insertError);
+          return false;
+        }
+
+        // إعادة المحاولة
+        const { data: newData } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (newData) {
+          setUser({
+            id: newData.id,
+            name: newData.name,
+            email: newData.email,
+            role: newData.user_type as UserRole,
+          });
+          return true;
+        }
+        return false;
       }
     } catch (error) {
       console.error("Error loading user data:", error);
+      return false;
     }
   };
 
@@ -96,7 +137,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     role?: UserRole,
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
 
@@ -109,14 +150,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        await loadUserData(data.user);
-        return true;
+        const loaded = await loadUserData(data.user);
+        if (loaded) {
+          return { success: true };
+        } else {
+          return {
+            success: false,
+            error: "فشل في تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.",
+          };
+        }
       }
 
-      return false;
-    } catch (error) {
+      return {
+        success: false,
+        error: "بيانات الاعتماد غير صحيحة",
+      };
+    } catch (error: any) {
       console.error("Login error:", error);
-      return false;
+      let errorMessage = "حدث خطأ أثناء تسجيل الدخول";
+
+      if (error.message === "Invalid login credentials") {
+        errorMessage = "البريد الإلكتروني أو كلمة المرور غير صحيحة";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول";
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -127,7 +188,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     role: UserRole,
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
 
@@ -150,20 +211,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // انتظر قليلاً للتأكد من تنفيذ الـ trigger
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        await loadUserData(data.user);
-        return true;
+        const loaded = await loadUserData(data.user);
+        if (loaded) {
+          return { success: true };
+        } else {
+          // في حال فشل التحميل، نحاول مرة أخيرة بعد لحظة
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const retryLoaded = await loadUserData(data.user);
+          if (retryLoaded) return { success: true };
+
+          return {
+            success: false,
+            error:
+              "تم إنشاء الحساب ولكن فشل تحميل البيانات. يرجى تسجيل الدخول.",
+          };
+        }
       }
 
-      return false;
+      return { success: false, error: "فشل إنشاء الحساب" };
     } catch (error: any) {
       console.error("Registration error:", error);
 
+      let errorMessage = "حدث خطأ أثناء إنشاء الحساب";
       // التعامل مع أخطاء معينة
       if (error.message?.includes("already registered")) {
-        console.error("البريد الإلكتروني مستخدم بالفعل");
+        errorMessage = "البريد الإلكتروني مستخدم بالفعل";
+      } else {
+        errorMessage = error.message;
       }
 
-      return false;
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }

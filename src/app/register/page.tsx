@@ -40,17 +40,17 @@ export default function RegisterPage() {
       return;
     }
 
-    const success = await register(
+    const result = await register(
       formData.name,
       formData.email,
       formData.password,
       formData.userType,
     );
 
-    if (success) {
+    if (result.success) {
       router.push("/dashboard");
     } else {
-      setError("البريد الإلكتروني مستخدم بالفعل");
+      setError(result.error || "حدث خطأ أثناء إنشاء الحساب");
     }
   };
 

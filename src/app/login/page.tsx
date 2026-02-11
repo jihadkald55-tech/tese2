@@ -30,12 +30,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    const success = await login(email, password, userType);
+    const result = await login(email, password, userType);
 
-    if (success) {
+    if (result.success) {
       router.push("/dashboard");
     } else {
-      setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      setError(result.error || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
     }
   };
 
