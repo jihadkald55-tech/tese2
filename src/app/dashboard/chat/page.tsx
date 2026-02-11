@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
   Send,
@@ -24,424 +24,298 @@ import {
   Volume2,
   VolumeX,
   ArrowRight,
-  UserPlus
-} from 'lucide-react'
-import { useUser, type User } from '@/contexts/UserContext'
-import UserSearchModal from '@/components/UserSearchModal'
-import { useNotifications } from '@/contexts/NotificationContext'
-import { saveUserData, loadUserData } from '@/lib/userDataManager'
+  UserPlus,
+} from "lucide-react";
+import { useUser, type User } from "@/contexts/UserContext";
+import UserSearchModal from "@/components/UserSearchModal";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { saveUserData, loadUserData } from "@/lib/userDataManager";
 
-type ContactType = 'supervisor' | 'assistant' | 'group' | 'student'
-type MessageStatus = 'sent' | 'delivered' | 'read'
+type ContactType = "supervisor" | "assistant" | "group" | "student";
+type MessageStatus = "sent" | "delivered" | "read";
 
 interface Message {
-  id: number
-  sender: 'me' | 'other'
-  senderName?: string
-  text: string
-  time: string
-  status?: MessageStatus
+  id: number;
+  sender: "me" | "other";
+  senderName?: string;
+  text: string;
+  time: string;
+  status?: MessageStatus;
   attachment?: {
-    type: 'image' | 'file'
-    name: string
-    url: string
-  }
+    type: "image" | "file";
+    name: string;
+    url: string;
+  };
 }
 
 interface Conversation {
-  id: number
-  name: string
-  role: string
-  type: ContactType
-  avatar: string
-  lastMessage: string
-  time: string
-  unread: number
-  online: boolean
-  pinned?: boolean
-  muted?: boolean
-  messages: Message[]
+  id: number;
+  name: string;
+  role: string;
+  type: ContactType;
+  avatar: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  online: boolean;
+  pinned?: boolean;
+  muted?: boolean;
+  messages: Message[];
 }
 
 export default function ChatPage() {
-  const router = useRouter()
-  const { user: currentUser } = useUser()
-  const { addNotification } = useNotifications()
-  const [message, setMessage] = useState('')
-  const [selectedChat, setSelectedChat] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState<'all' | ContactType>('all')
-  const [isTyping, setIsTyping] = useState(false)
-  const [showUserSearch, setShowUserSearch] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const router = useRouter();
+  const { user: currentUser } = useUser();
+  const { addNotification } = useNotifications();
+  const [message, setMessage] = useState("");
+  const [selectedChat, setSelectedChat] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | ContactType>("all");
+  const [isTyping, setIsTyping] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: 1,
-      name: 'د. محمد العلي',
-      role: 'مشرف البحث الرئيسي',
-      type: 'supervisor',
-      avatar: 'د',
-      lastMessage: 'ممتاز! أرجو مراجعة الفصل الثالث وإضافة المزيد من المراجع',
-      time: '10:30 ص',
-      unread: 2,
-      online: true,
-      pinned: true,
-      messages: [
-        {
-          id: 1,
-          sender: 'other',
-          text: 'مرحباً أحمد، كيف حال التقدم في البحث؟',
-          time: '9:00 ص',
-          status: 'read'
-        },
-        {
-          id: 2,
-          sender: 'me',
-          text: 'صباح الخير دكتور، الحمدلله أكملت الفصل الثاني وبدأت بالثالث',
-          time: '9:15 ص',
-          status: 'read'
-        },
-        {
-          id: 3,
-          sender: 'other',
-          text: 'رائع! أرسل لي المسودة لمراجعتها',
-          time: '10:00 ص',
-          status: 'read'
-        },
-        {
-          id: 4,
-          sender: 'me',
-          text: 'تم الإرسال دكتور، في انتظار ملاحظاتك',
-          time: '10:15 ص',
-          status: 'delivered'
-        },
-        {
-          id: 5,
-          sender: 'other',
-          text: 'ممتاز! أرجو مراجعة الفصل الثالث وإضافة المزيد من المراجع',
-          time: '10:30 ص',
-          status: 'sent'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'أ. سارة أحمد',
-      role: 'مساعدة المشرف - المنهجية',
-      type: 'assistant',
-      avatar: 'س',
-      lastMessage: 'هل تحتاج مساعدة في تصميم الاستبيان؟',
-      time: 'أمس',
-      unread: 0,
-      online: false,
-      messages: [
-        {
-          id: 1,
-          sender: 'other',
-          text: 'مرحباً، أنا هنا للمساعدة في الجانب المنهجي من بحثك',
-          time: 'أمس 2:00 م',
-          status: 'read'
-        },
-        {
-          id: 2,
-          sender: 'me',
-          text: 'شكراً أستاذة، أحتاج مساعدة في تصميم الاستبيان',
-          time: 'أمس 2:15 م',
-          status: 'read'
-        },
-        {
-          id: 3,
-          sender: 'other',
-          text: 'هل تحتاج مساعدة في تصميم الاستبيان؟',
-          time: 'أمس 2:30 م',
-          status: 'read'
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'د. عبدالله السالم',
-      role: 'مشرف مشارك - التحليل الإحصائي',
-      type: 'supervisor',
-      avatar: 'ع',
-      lastMessage: 'سأرسل لك نماذج التحليل الإحصائي اليوم',
-      time: '2 أيام',
-      unread: 1,
-      online: false,
-      messages: [
-        {
-          id: 1,
-          sender: 'other',
-          text: 'سأرسل لك نماذج التحليل الإحصائي اليوم',
-          time: '2 أيام 4:00 م',
-          status: 'read'
-        }
-      ]
-    },
-    {
-      id: 4,
-      name: 'مجموعة أبحاث التخرج 2026',
-      role: '12 طالب - هندسة البرمجيات',
-      type: 'group',
-      avatar: 'م',
-      lastMessage: 'خالد: هل أحد يعرف كيفية تنسيق المراجع؟',
-      time: '3 أيام',
-      unread: 5,
-      online: true,
-      messages: [
-        {
-          id: 1,
-          sender: 'other',
-          senderName: 'فاطمة',
-          text: 'مرحباً بالجميع، كيف حال تقدمكم في الأبحاث؟',
-          time: '3 أيام 10:00 ص',
-          status: 'read'
-        },
-        {
-          id: 2,
-          sender: 'me',
-          text: 'الحمدلله، أكملت الفصل الثاني',
-          time: '3 أيام 10:15 ص',
-          status: 'read'
-        },
-        {
-          id: 3,
-          sender: 'other',
-          senderName: 'خالد',
-          text: 'هل أحد يعرف كيفية تنسيق المراجع؟',
-          time: '3 أيام 11:00 ص',
-          status: 'read'
-        }
-      ]
-    },
-    {
-      id: 5,
-      name: 'نورة المطيري',
-      role: 'زميلة - بحث مشترك',
-      type: 'student',
-      avatar: 'ن',
-      lastMessage: 'شكراً على المساعدة في الإطار النظري',
-      time: 'الأسبوع الماضي',
-      unread: 0,
-      online: true,
-      messages: [
-        {
-          id: 1,
-          sender: 'other',
-          text: 'شكراً على المساعدة في الإطار النظري',
-          time: 'الأسبوع الماضي',
-          status: 'read'
-        }
-      ]
-    }
-  ])
+  // ✅ البدء بقائمة فارغة - سيتم تحميل المحادثات من localStorage أو قاعدة البيانات
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   // Load messages from localStorage on mount
   useEffect(() => {
-    const savedConversations = localStorage.getItem('chatConversations')
+    const savedConversations = localStorage.getItem("chatConversations");
     if (savedConversations) {
       try {
-        setConversations(JSON.parse(savedConversations))
+        setConversations(JSON.parse(savedConversations));
       } catch (error) {
-        console.error('Error loading conversations:', error)
+        console.error("Error loading conversations:", error);
       }
     }
-  }, [])
+  }, []);
 
   // Save conversations to localStorage whenever they change
   useEffect(() => {
     if (conversations.length > 0) {
-      localStorage.setItem('chatConversations', JSON.stringify(conversations))
+      localStorage.setItem("chatConversations", JSON.stringify(conversations));
     }
-  }, [conversations])
+  }, [conversations]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [selectedChat, conversations])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedChat, conversations]);
 
   const handleAddUser = (selectedUser: User) => {
     // التحقق من عدم وجود محادثة مسبقة
-    const existingChat = conversations.find(conv => 
-      conv.name === selectedUser.name
-    )
+    const existingChat = conversations.find(
+      (conv) => conv.name === selectedUser.name,
+    );
 
     if (existingChat) {
-      setSelectedChat(existingChat.id)
-      return
+      setSelectedChat(existingChat.id);
+      return;
     }
 
     // إنشاء محادثة جديدة
     const newConversation: Conversation = {
       id: Date.now(),
       name: selectedUser.name,
-      role: selectedUser.role === 'professor' ? 'مشرف البحث' : 'طالب',
-      type: selectedUser.role === 'professor' ? 'supervisor' : 'student',
+      role: selectedUser.role === "professor" ? "مشرف البحث" : "طالب",
+      type: selectedUser.role === "professor" ? "supervisor" : "student",
       avatar: selectedUser.name.charAt(0),
-      lastMessage: 'ابدأ المحادثة...',
-      time: 'الآن',
+      lastMessage: "ابدأ المحادثة...",
+      time: "الآن",
       unread: 0,
       online: true,
-      messages: []
-    }
+      messages: [],
+    };
 
-    setConversations(prev => [newConversation, ...prev])
-    setSelectedChat(newConversation.id)
-  }
+    setConversations((prev) => [newConversation, ...prev]);
+    setSelectedChat(newConversation.id);
+  };
 
   const handleSend = () => {
     if (message.trim() && selectedChat !== null) {
-      const now = new Date()
-      const timeString = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-      
+      const now = new Date();
+      const timeString = now.toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       const newMessage: Message = {
         id: Date.now(),
-        sender: 'me',
+        sender: "me",
         text: message.trim(),
         time: timeString,
-        status: 'sent'
-      }
+        status: "sent",
+      };
 
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedChat) {
-          return {
-            ...conv,
-            messages: [...conv.messages, newMessage],
-            lastMessage: message.trim(),
-            time: 'الآن',
-            unread: 0
-          }
-        }
-        return conv
-      }))
-
-      setMessage('')
-
-      // Simulate message delivery
-      setTimeout(() => {
-        setConversations(prev => prev.map(conv => {
+      setConversations((prev) =>
+        prev.map((conv) => {
           if (conv.id === selectedChat) {
             return {
               ...conv,
-              messages: conv.messages.map(msg => 
-                msg.id === newMessage.id ? { ...msg, status: 'delivered' } : msg
-              )
-            }
+              messages: [...conv.messages, newMessage],
+              lastMessage: message.trim(),
+              time: "الآن",
+              unread: 0,
+            };
           }
-          return conv
-        }))
-      }, 1000)
+          return conv;
+        }),
+      );
+
+      setMessage("");
+
+      // Simulate message delivery
+      setTimeout(() => {
+        setConversations((prev) =>
+          prev.map((conv) => {
+            if (conv.id === selectedChat) {
+              return {
+                ...conv,
+                messages: conv.messages.map((msg) =>
+                  msg.id === newMessage.id
+                    ? { ...msg, status: "delivered" }
+                    : msg,
+                ),
+              };
+            }
+            return conv;
+          }),
+        );
+      }, 1000);
 
       // Simulate auto-reply from supervisor
       if (selectedChat === 1) {
         setTimeout(() => {
-          setIsTyping(true)
-        }, 2000)
+          setIsTyping(true);
+        }, 2000);
 
         setTimeout(() => {
           const autoReply: Message = {
             id: Date.now() + 1,
-            sender: 'other',
-            text: 'شكراً على التواصل، سأراجع ما أرسلته وأرد عليك قريباً',
-            time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
-            status: 'read'
-          }
+            sender: "other",
+            text: "شكراً على التواصل، سأراجع ما أرسلته وأرد عليك قريباً",
+            time: new Date().toLocaleTimeString("ar-SA", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            status: "read",
+          };
 
-          setConversations(prev => prev.map(conv => {
-            if (conv.id === selectedChat) {
-              // إضافة إشعار عند استقبال رسالة جديدة
-              addNotification({
-                type: 'message',
-                title: 'رسالة جديدة من د. محمد العلي',
-                message: autoReply.text,
-                link: '/dashboard/chat'
-              })
-              
-              return {
-                ...conv,
-                messages: [...conv.messages, autoReply],
-                lastMessage: autoReply.text,
-                time: 'الآن'
+          setConversations((prev) =>
+            prev.map((conv) => {
+              if (conv.id === selectedChat) {
+                // إضافة إشعار عند استقبال رسالة جديدة
+                addNotification({
+                  type: "message",
+                  title: "رسالة جديدة من د. محمد العلي",
+                  message: autoReply.text,
+                  link: "/dashboard/chat",
+                });
+
+                return {
+                  ...conv,
+                  messages: [...conv.messages, autoReply],
+                  lastMessage: autoReply.text,
+                  time: "الآن",
+                };
               }
-            }
-            return conv
-          }))
-          setIsTyping(false)
+              return conv;
+            }),
+          );
+          setIsTyping(false);
 
           // Mark messages as read
           setTimeout(() => {
-            setConversations(prev => prev.map(conv => {
-              if (conv.id === selectedChat) {
-                return {
-                  ...conv,
-                  messages: conv.messages.map(msg => 
-                    msg.sender === 'me' ? { ...msg, status: 'read' } : msg
-                  )
+            setConversations((prev) =>
+              prev.map((conv) => {
+                if (conv.id === selectedChat) {
+                  return {
+                    ...conv,
+                    messages: conv.messages.map((msg) =>
+                      msg.sender === "me" ? { ...msg, status: "read" } : msg,
+                    ),
+                  };
                 }
-              }
-              return conv
-            }))
-          }, 1000)
-        }, 4000)
+                return conv;
+              }),
+            );
+          }, 1000);
+        }, 4000);
       }
     }
-  }
+  };
 
   const handlePinConversation = (id: number) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === id ? { ...conv, pinned: !conv.pinned } : conv
-    ))
-  }
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === id ? { ...conv, pinned: !conv.pinned } : conv,
+      ),
+    );
+  };
 
   const handleMuteConversation = (id: number) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === id ? { ...conv, muted: !conv.muted } : conv
-    ))
-  }
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === id ? { ...conv, muted: !conv.muted } : conv,
+      ),
+    );
+  };
 
   const markAsRead = (id: number) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === id ? { ...conv, unread: 0 } : conv
-    ))
-  }
+    setConversations((prev) =>
+      prev.map((conv) => (conv.id === id ? { ...conv, unread: 0 } : conv)),
+    );
+  };
 
   const filteredConversations = conversations
-    .filter(conv => {
-      const matchesSearch = conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesFilter = filterType === 'all' || conv.type === filterType
-      return matchesSearch && matchesFilter
+    .filter((conv) => {
+      const matchesSearch =
+        conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = filterType === "all" || conv.type === filterType;
+      return matchesSearch && matchesFilter;
     })
     .sort((a, b) => {
       // Pinned conversations first
-      if (a.pinned && !b.pinned) return -1
-      if (!a.pinned && b.pinned) return 1
-      return 0
-    })
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    });
 
-  const selectedConversation = conversations.find(conv => conv.id === selectedChat)
+  const selectedConversation = conversations.find(
+    (conv) => conv.id === selectedChat,
+  );
 
-  const getContactTypeLabel = (type: ContactType | 'all') => {
+  const getContactTypeLabel = (type: ContactType | "all") => {
     switch (type) {
-      case 'supervisor': return 'المشرفين'
-      case 'assistant': return 'المساعدين'
-      case 'group': return 'المجموعات'
-      case 'student': return 'الطلاب'
-      case 'all':
-      default: return 'الكل'
+      case "supervisor":
+        return "المشرفين";
+      case "assistant":
+        return "المساعدين";
+      case "group":
+        return "المجموعات";
+      case "student":
+        return "الطلاب";
+      case "all":
+      default:
+        return "الكل";
     }
-  }
+  };
 
   const getContactTypeColor = (type: ContactType) => {
     switch (type) {
-      case 'supervisor': return 'from-blue-500 to-blue-600'
-      case 'assistant': return 'from-green-500 to-green-600'
-      case 'group': return 'from-purple-500 to-purple-600'
-      case 'student': return 'from-orange-500 to-orange-600'
-      default: return 'from-gray-500 to-gray-600'
+      case "supervisor":
+        return "from-blue-500 to-blue-600";
+      case "assistant":
+        return "from-green-500 to-green-600";
+      case "group":
+        return "from-purple-500 to-purple-600";
+      case "student":
+        return "from-orange-500 to-orange-600";
+      default:
+        return "from-gray-500 to-gray-600";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -468,7 +342,8 @@ export default function ChatPage() {
             المحادثات
           </h1>
           <p className="text-gray-600 dark:text-dark-muted">
-            تواصل مع {currentUser?.role === 'student' ? 'مشرفك' : 'طلابك'} والزملاء
+            تواصل مع {currentUser?.role === "student" ? "مشرفك" : "طلابك"}{" "}
+            والزملاء
           </p>
         </div>
         <motion.button
@@ -478,14 +353,18 @@ export default function ChatPage() {
           className="btn-primary flex items-center gap-2"
         >
           <UserPlus className="w-5 h-5" />
-          <span>{currentUser?.role === 'student' ? 'بحث عن مشرف' : 'بحث عن طالب'}</span>
+          <span>
+            {currentUser?.role === "student" ? "بحث عن مشرف" : "بحث عن طالب"}
+          </span>
         </motion.button>
       </div>
 
-
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 md:gap-6 h-[calc(100vh-200px)] md:h-[calc(100vh-280px)] min-h-[500px] md:min-h-[600px]">
         {/* Conversations List - Hidden on mobile when chat is selected */}
-        <div className={`${selectedChat !== null ? 'hidden lg:flex' : 'flex'} card flex-col h-full overflow-hidden`}>{/* Search and Filter */}
+        <div
+          className={`${selectedChat !== null ? "hidden lg:flex" : "flex"} card flex-col h-full overflow-hidden`}
+        >
+          {/* Search and Filter */}
           <div className="p-4 border-b border-medad-border dark:border-dark-border space-y-3 flex-shrink-0">
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -500,14 +379,16 @@ export default function ChatPage() {
 
             {/* Filter Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {(['all', 'supervisor', 'assistant', 'group', 'student'] as const).map((type) => (
+              {(
+                ["all", "supervisor", "assistant", "group", "student"] as const
+              ).map((type) => (
                 <button
                   key={type}
                   onClick={() => setFilterType(type)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                     filterType === type
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-medad-paper dark:bg-dark-hover text-gray-600 dark:text-dark-muted hover:bg-medad-hover dark:hover:bg-dark-border'
+                      ? "bg-primary-600 text-white"
+                      : "bg-medad-paper dark:bg-dark-hover text-gray-600 dark:text-dark-muted hover:bg-medad-hover dark:hover:bg-dark-border"
                   }`}
                 >
                   {getContactTypeLabel(type)}
@@ -531,24 +412,26 @@ export default function ChatPage() {
                   key={conv.id}
                   whileHover={{ x: 5 }}
                   onClick={() => {
-                    setSelectedChat(conv.id)
-                    markAsRead(conv.id)
+                    setSelectedChat(conv.id);
+                    markAsRead(conv.id);
                   }}
                   className={`p-3 cursor-pointer border-b border-medad-border dark:border-dark-border transition-colors ${
                     selectedChat === conv.id
-                      ? 'bg-primary-50 dark:bg-primary-900/20'
-                      : 'hover:bg-medad-hover dark:hover:bg-dark-hover'
+                      ? "bg-primary-50 dark:bg-primary-900/20"
+                      : "hover:bg-medad-hover dark:hover:bg-dark-hover"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative flex-shrink-0">
-                      <div className={`w-11 h-11 bg-gradient-to-br ${getContactTypeColor(conv.type)} rounded-full flex items-center justify-center text-white font-bold shadow-md`}>
+                      <div
+                        className={`w-11 h-11 bg-gradient-to-br ${getContactTypeColor(conv.type)} rounded-full flex items-center justify-center text-white font-bold shadow-md`}
+                      >
                         {conv.avatar}
                       </div>
                       {conv.online && (
                         <div className="absolute bottom-0 left-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-dark-card rounded-full"></div>
                       )}
-                      {conv.type === 'group' && (
+                      {conv.type === "group" && (
                         <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
                           <Users className="w-2.5 h-2.5 text-white" />
                         </div>
@@ -560,13 +443,23 @@ export default function ChatPage() {
                           <h3 className="font-bold text-medad-ink dark:text-dark-text text-sm truncate">
                             {conv.name}
                           </h3>
-                          {conv.pinned && <Pin className="w-3 h-3 text-primary-600" />}
-                          {conv.muted && <VolumeX className="w-3 h-3 text-gray-400" />}
+                          {conv.pinned && (
+                            <Pin className="w-3 h-3 text-primary-600" />
+                          )}
+                          {conv.muted && (
+                            <VolumeX className="w-3 h-3 text-gray-400" />
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-dark-muted flex-shrink-0 mr-2">{conv.time}</span>
+                        <span className="text-xs text-gray-500 dark:text-dark-muted flex-shrink-0 mr-2">
+                          {conv.time}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-dark-muted mb-1 truncate">{conv.role}</p>
-                      <p className={`text-xs truncate ${conv.unread > 0 ? 'text-medad-ink dark:text-dark-text font-medium' : 'text-gray-600 dark:text-dark-muted'}`}>
+                      <p className="text-xs text-gray-500 dark:text-dark-muted mb-1 truncate">
+                        {conv.role}
+                      </p>
+                      <p
+                        className={`text-xs truncate ${conv.unread > 0 ? "text-medad-ink dark:text-dark-text font-medium" : "text-gray-600 dark:text-dark-muted"}`}
+                      >
                         {conv.lastMessage}
                       </p>
                     </div>
@@ -595,9 +488,11 @@ export default function ChatPage() {
                 >
                   <ArrowRight className="w-5 h-5 text-gray-600 dark:text-dark-text" />
                 </button>
-                
+
                 <div className="relative">
-                  <div className={`w-12 h-12 bg-gradient-to-br ${getContactTypeColor(selectedConversation.type)} rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md`}>
+                  <div
+                    className={`w-12 h-12 bg-gradient-to-br ${getContactTypeColor(selectedConversation.type)} rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md`}
+                  >
                     {selectedConversation.avatar}
                   </div>
                   {selectedConversation.online && (
@@ -610,12 +505,18 @@ export default function ChatPage() {
                   </h3>
                   <p className="text-xs flex items-center gap-2">
                     {selectedConversation.online ? (
-                      <span className="text-green-600 dark:text-green-400">متصل الآن</span>
+                      <span className="text-green-600 dark:text-green-400">
+                        متصل الآن
+                      </span>
                     ) : (
-                      <span className="text-gray-500 dark:text-dark-muted">غير متصل</span>
+                      <span className="text-gray-500 dark:text-dark-muted">
+                        غير متصل
+                      </span>
                     )}
                     <span className="text-gray-400">•</span>
-                    <span className="text-gray-500 dark:text-dark-muted">{selectedConversation.role}</span>
+                    <span className="text-gray-500 dark:text-dark-muted">
+                      {selectedConversation.role}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -625,24 +526,30 @@ export default function ChatPage() {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handlePinConversation(selectedConversation.id)}
                   className={`p-2 rounded-google transition-colors ${
-                    selectedConversation.pinned 
-                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600' 
-                      : 'hover:bg-medad-hover dark:hover:bg-dark-hover'
+                    selectedConversation.pinned
+                      ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600"
+                      : "hover:bg-medad-hover dark:hover:bg-dark-hover"
                   }`}
-                  title={selectedConversation.pinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                  title={
+                    selectedConversation.pinned ? "إلغاء التثبيت" : "تثبيت"
+                  }
                 >
                   <Pin className="w-5 h-5" />
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleMuteConversation(selectedConversation.id)}
+                  onClick={() =>
+                    handleMuteConversation(selectedConversation.id)
+                  }
                   className={`p-2 rounded-google transition-colors ${
-                    selectedConversation.muted 
-                      ? 'bg-red-100 dark:bg-red-900/30 text-red-600' 
-                      : 'hover:bg-medad-hover dark:hover:bg-dark-hover'
+                    selectedConversation.muted
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-600"
+                      : "hover:bg-medad-hover dark:hover:bg-dark-hover"
                   }`}
-                  title={selectedConversation.muted ? 'إلغاء الكتم' : 'كتم الإشعارات'}
+                  title={
+                    selectedConversation.muted ? "إلغاء الكتم" : "كتم الإشعارات"
+                  }
                 >
                   {selectedConversation.muted ? (
                     <VolumeX className="w-5 h-5" />
@@ -685,31 +592,41 @@ export default function ChatPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className={`flex ${msg.sender === 'me' ? 'justify-start' : 'justify-end'}`}
+                    className={`flex ${msg.sender === "me" ? "justify-start" : "justify-end"}`}
                   >
                     <div className="max-w-[70%]">
-                      {msg.sender === 'other' && msg.senderName && (
+                      {msg.sender === "other" && msg.senderName && (
                         <p className="text-xs text-gray-500 dark:text-dark-muted mb-1 mr-2">
                           {msg.senderName}
                         </p>
                       )}
                       <div
                         className={`px-4 py-3 rounded-2xl ${
-                          msg.sender === 'me'
-                            ? 'bg-primary-600 text-white rounded-br-sm'
-                            : 'bg-white dark:bg-dark-card text-medad-ink dark:text-dark-text rounded-bl-sm shadow-sm border border-medad-border dark:border-dark-border'
+                          msg.sender === "me"
+                            ? "bg-primary-600 text-white rounded-br-sm"
+                            : "bg-white dark:bg-dark-card text-medad-ink dark:text-dark-text rounded-bl-sm shadow-sm border border-medad-border dark:border-dark-border"
                         }`}
                       >
-                        <p className="text-sm leading-relaxed break-words">{msg.text}</p>
+                        <p className="text-sm leading-relaxed break-words">
+                          {msg.text}
+                        </p>
                         <div className="flex items-center justify-end gap-2 mt-2">
-                          <span className={`text-xs ${msg.sender === 'me' ? 'text-primary-100' : 'text-gray-500 dark:text-dark-muted'}`}>
+                          <span
+                            className={`text-xs ${msg.sender === "me" ? "text-primary-100" : "text-gray-500 dark:text-dark-muted"}`}
+                          >
                             {msg.time}
                           </span>
-                          {msg.sender === 'me' && msg.status && (
+                          {msg.sender === "me" && msg.status && (
                             <>
-                              {msg.status === 'sent' && <Check className="w-4 h-4 text-primary-200" />}
-                              {msg.status === 'delivered' && <CheckCheck className="w-4 h-4 text-primary-200" />}
-                              {msg.status === 'read' && <CheckCheck className="w-4 h-4 text-blue-200" />}
+                              {msg.status === "sent" && (
+                                <Check className="w-4 h-4 text-primary-200" />
+                              )}
+                              {msg.status === "delivered" && (
+                                <CheckCheck className="w-4 h-4 text-primary-200" />
+                              )}
+                              {msg.status === "read" && (
+                                <CheckCheck className="w-4 h-4 text-blue-200" />
+                              )}
                             </>
                           )}
                         </div>
@@ -728,9 +645,18 @@ export default function ChatPage() {
                 >
                   <div className="bg-white dark:bg-dark-card px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm border border-medad-border dark:border-dark-border">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
                     </div>
                   </div>
                 </motion.div>
@@ -762,15 +688,15 @@ export default function ChatPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
                     }
                   }}
                   placeholder="اكتب رسالتك... (Shift + Enter لسطر جديد)"
                   rows={1}
                   className="flex-1 px-4 py-2.5 bg-medad-paper dark:bg-dark-hover border border-medad-border dark:border-dark-border rounded-google focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none max-h-32 text-sm"
-                  style={{ minHeight: '40px' }}
+                  style={{ minHeight: "40px" }}
                 />
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -794,12 +720,13 @@ export default function ChatPage() {
                 اختر محادثة للبدء
               </h3>
               <p className="text-gray-600 dark:text-dark-muted max-w-md">
-                اختر محادثة من القائمة على اليمين أو ابدأ محادثة جديدة مع المشرف أو زملائك
+                اختر محادثة من القائمة على اليمين أو ابدأ محادثة جديدة مع المشرف
+                أو زملائك
               </p>
             </div>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
