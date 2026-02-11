@@ -219,25 +219,44 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        // ✅ يتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
-        // انتظر قليلاً للتأكد من تنفيذ الـ trigger
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log("User created in Auth:", data.user.id);
 
-        const loaded = await loadUserData(data.user);
+        // ✅ يتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
+        // انتظر للتأكد من تنفيذ الـ trigger
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // محاولة أولى
+        let loaded = await loadUserData(data.user);
+        console.log("First load attempt:", loaded);
+
         if (loaded) {
           return { success: true };
-        } else {
-          // في حال فشل التحميل، نحاول مرة أخيرة بعد لحظة
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          const retryLoaded = await loadUserData(data.user);
-          if (retryLoaded) return { success: true };
-
-          return {
-            success: false,
-            error:
-              "تم إنشاء الحساب ولكن فشل تحميل البيانات. يرجى تسجيل الدخول.",
-          };
         }
+
+        // محاولة ثانية بعد 2 ثانية
+        console.log("Retrying after 2 seconds...");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        loaded = await loadUserData(data.user);
+        console.log("Second load attempt:", loaded);
+
+        if (loaded) {
+          return { success: true };
+        }
+
+        // محاولة ثالثة وأخيرة بعد 3 ثوانٍ إضافية
+        console.log("Final retry after 3 more seconds...");
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        loaded = await loadUserData(data.user);
+        console.log("Third load attempt:", loaded);
+
+        if (loaded) {
+          return { success: true };
+        }
+
+        return {
+          success: false,
+          error: "تم إنشاء الحساب ولكن فشل تحميل البيانات. يرجى تسجيل الدخول.",
+        };
       }
 
       return { success: false, error: "فشل إنشاء الحساب" };
