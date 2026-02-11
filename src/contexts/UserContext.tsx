@@ -146,17 +146,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        // سيتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
-        // لكن في حالة لم يتم، نقوم بإنشائه يدوياً
-        const { error: insertError } = await supabase.from("users").upsert({
-          id: data.user.id,
-          email,
-          name,
-          user_type: role,
-        });
-
-        if (insertError)
-          console.error("Error creating user record:", insertError);
+        // ✅ يتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
+        // انتظر قليلاً للتأكد من تنفيذ الـ trigger
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         await loadUserData(data.user);
         return true;

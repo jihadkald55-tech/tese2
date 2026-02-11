@@ -101,6 +101,9 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own data" ON public.users
     FOR SELECT USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert their own data" ON public.users
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Users can update their own data" ON public.users
     FOR UPDATE USING (auth.uid() = id);
 
@@ -156,6 +159,9 @@ CREATE POLICY "Users can delete their own conversations" ON public.ai_conversati
 -- سياسات جدول الإشعارات
 CREATE POLICY "Users can view their own notifications" ON public.notifications
     FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own notifications" ON public.notifications
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own notifications" ON public.notifications
     FOR UPDATE USING (auth.uid() = user_id);
