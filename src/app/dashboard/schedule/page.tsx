@@ -102,7 +102,7 @@ export default function SchedulePage() {
     };
 
     checkDeadlines();
-  }, [addNotification]);
+  }, [addNotification, events]);
 
   const getEventIcon = (type: string) => {
     switch (type) {

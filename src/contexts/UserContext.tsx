@@ -302,11 +302,15 @@ export function useUser() {
     if (typeof window === "undefined") {
       return {
         user: null,
-        login: () => false,
-        logout: () => {},
-        register: () => false,
-        updateUser: () => {},
+        login: async () => ({ success: false, error: "Server side rendering" }),
+        logout: async () => {},
+        register: async () => ({
+          success: false,
+          error: "Server side rendering",
+        }),
+        updateUser: async () => {},
         isAuthenticated: false,
+        loading: true,
       };
     }
     throw new Error("useUser must be used within a UserProvider");
