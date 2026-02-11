@@ -1,153 +1,236 @@
-'use client'
+"use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { initializeNewUser, cleanupLegacyData } from '@/lib/userDataManager'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { supabase } from "@/lib/supabase";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
-export type UserRole = 'student' | 'professor' | 'admin'
+export type UserRole = "student" | "professor" | "admin";
 
 export interface User {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  avatar?: string
-  department?: string
-  supervisorId?: string // للطالب - معرف المشرف
-  students?: string[] // للأستاذ - قائمة الطلاب
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar?: string;
+  department?: string;
+  supervisorId?: string;
+  students?: string[];
 }
 
 interface UserContextType {
-  user: User | null
-  login: (email: string, password: string, role: UserRole) => boolean
-  logout: () => void
-  register: (name: string, email: string, password: string, role: UserRole) => boolean
-  updateUser: (userData: Partial<User>) => void
-  isAuthenticated: boolean
+  user: User | null;
+  login: (email: string, password: string, role?: UserRole) => Promise<boolean>;
+  logout: () => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole,
+  ) => Promise<boolean>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
+  isAuthenticated: boolean;
+  loading: boolean;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined)
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // تحميل بيانات المستخدم من قاعدة البيانات
+  const loadUserData = async (authUser: SupabaseUser) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.user_type as UserRole,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
 
   useEffect(() => {
-    setMounted(true)
-    // تحميل بيانات المستخدم من localStorage
-    if (typeof window === 'undefined') return
-    
-    // تنظيف البيانات القديمة غير المعزولة (مرة واحدة)
-    const hasCleanedUp = localStorage.getItem('data_cleanup_done')
-    if (!hasCleanedUp) {
-      cleanupLegacyData()
-      localStorage.setItem('data_cleanup_done', 'true')
-    }
-    
-    const savedUser = localStorage.getItem('currentUser')
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser))
-      } catch (error) {
-        console.error('Error loading user data:', error)
+    // التحقق من الجلسة الحالية
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadUserData(session.user);
       }
-    }
-  }, [])
+      setLoading(false);
+    });
 
-  const login = (email: string, password: string, role: UserRole): boolean => {
-    // التحقق من المستخدمين المسجلين
-    if (typeof window === 'undefined') return false
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    const foundUser = users.find((u: any) => 
-      u.email === email && u.password === password && u.role === role
-    )
-
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser
-      setUser(userWithoutPassword as User)
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword))
-      return true
-    }
-
-    // ✅ حُذف: لا مستخدمين افتراضيين
-    // المستخدمون الحقيقيون فقط يمكنهم تسجيل الدخول
-    
-    return false
-  }
-
-  const register = (name: string, email: string, password: string, role: UserRole): boolean => {
-    if (typeof window === 'undefined') return false
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    
-    // التحقق من عدم وجود المستخدم
-    if (users.some((u: any) => u.email === email)) {
-      return false
-    }
-
-    const newUser = {
-      id: `${role}-${Date.now()}`,
-      name,
-      email,
-      password, // ⚠️ TODO: يجب hash في بيئة إنتاج حقيقية
-      role,
-      ...(role === 'student' && { supervisorId: undefined, department: '' }),
-      ...(role === 'professor' && { students: [], department: '' })
-    }
-
-    users.push(newUser)
-    localStorage.setItem('users', JSON.stringify(users))
-
-    const { password: _, ...userWithoutPassword } = newUser
-    setUser(userWithoutPassword as User)
-    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword))
-    
-    // ✅ تهيئة بيانات المستخدم الجديد (فارغة)
-    initializeNewUser(newUser.id)
-    
-    return true
-  }
-
-  const logout = () => {
-    if (typeof window === 'undefined') return
-    setUser(null)
-    localStorage.removeItem('currentUser')
-  }
-
-  const updateUser = (userData: Partial<User>) => {
-    if (typeof window === 'undefined') return
-    if (user) {
-      const updatedUser = { ...user, ...userData }
-      setUser(updatedUser)
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser))
-      
-      // تحديث في قائمة المستخدمين
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const index = users.findIndex((u: any) => u.id === user.id)
-      if (index !== -1) {
-        users[index] = { ...users[index], ...userData }
-        localStorage.setItem('users', JSON.stringify(users))
+    // الاستماع لتغييرات المصادقة
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await loadUserData(session.user);
+      } else {
+        setUser(null);
       }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (
+    email: string,
+    password: string,
+    role?: UserRole,
+  ): Promise<boolean> => {
+    try {
+      setLoading(true);
+
+      // تسجيل الدخول عبر Supabase Auth
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        await loadUserData(data.user);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Login error:", error);
+      return false;
+    } finally {
+      setLoading(false);
     }
-  }
+  };
+
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole,
+  ): Promise<boolean> => {
+    try {
+      setLoading(true);
+
+      // إنشاء حساب مستخدم جديد في Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            user_type: role,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // سيتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
+        // لكن في حالة لم يتم، نقوم بإنشائه يدوياً
+        const { error: insertError } = await supabase.from("users").upsert({
+          id: data.user.id,
+          email,
+          name,
+          user_type: role,
+        });
+
+        if (insertError)
+          console.error("Error creating user record:", insertError);
+
+        await loadUserData(data.user);
+        return true;
+      }
+
+      return false;
+    } catch (error: any) {
+      console.error("Registration error:", error);
+
+      // التعامل مع أخطاء معينة
+      if (error.message?.includes("already registered")) {
+        console.error("البريد الإلكتروني مستخدم بالفعل");
+      }
+
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUser = async (userData: Partial<User>): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: userData.name,
+          user_type: userData.role,
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      setUser({ ...user, ...userData });
+    } catch (error) {
+      console.error("Update user error:", error);
+    }
+  };
 
   return (
-    <UserContext.Provider value={{
-      user,
-      login,
-      logout,
-      register,
-      updateUser,
-      isAuthenticated: !!user
-    }}>
+    <UserContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        register,
+        updateUser,
+        isAuthenticated: !!user,
+        loading,
+      }}
+    >
       {children}
     </UserContext.Provider>
-  )
+  );
 }
 
 export function useUser() {
-  const context = useContext(UserContext)
+  const context = useContext(UserContext);
   if (context === undefined) {
     // Return default values during SSR/build time
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {
         user: null,
         login: () => false,
@@ -155,9 +238,9 @@ export function useUser() {
         register: () => false,
         updateUser: () => {},
         isAuthenticated: false,
-      }
+      };
     }
-    throw new Error('useUser must be used within a UserProvider')
+    throw new Error("useUser must be used within a UserProvider");
   }
-  return context
+  return context;
 }

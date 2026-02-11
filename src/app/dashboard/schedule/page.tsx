@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -14,104 +14,125 @@ import {
   Users,
   FileText,
   Bell,
-  ArrowRight
-} from 'lucide-react'
-import { useNotifications } from '@/contexts/NotificationContext'
-import { useUser } from '@/contexts/UserContext'
-import { saveUserData, loadUserData } from '@/lib/userDataManager'
+  ArrowRight,
+} from "lucide-react";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useUser } from "@/contexts/UserContext";
+import {
+  getUserTasks,
+  addTask as addTaskDB,
+  updateTask as updateTaskDB,
+  deleteTask as deleteTaskDB,
+} from "@/lib/supabaseData";
 
 export default function SchedulePage() {
-  const router = useRouter()
-  const { user } = useUser()
-  const { addNotification } = useNotifications()
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [events, setEvents] = useState<any[]>([])
+  const router = useRouter();
+  const { user } = useUser();
+  const { addNotification } = useNotifications();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [events, setEvents] = useState<any[]>([]);
 
-  // ✅ تحميل الأحداث للمستخدم الحالي فقط
+  // ✅ تحميل الأحداث من Supabase
   useEffect(() => {
-    if (!user?.id) return
-    
-    const userSchedule = loadUserData<any[]>(user.id, 'schedule')
-    if (userSchedule && userSchedule.length > 0) {
-      setEvents(userSchedule)
-    } else {
-      // ✅ مستخدم جديد = جدول فارغ (لا أحداث وهمية)
-      setEvents([])
-    }
-  }, [user?.id])
+    if (!user?.id) return;
 
-  // ✅ حفظ الأحداث للمستخدم الحالي فقط
-  useEffect(() => {
-    if (!user?.id) return
-    if (events.length >= 0) {
-      saveUserData(user.id, 'schedule', events)
-    }
-  }, [events, user?.id])
+    const loadEvents = async () => {
+      const tasks = await getUserTasks(user.id);
+      if (tasks && tasks.length > 0) {
+        const mappedEvents = tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          date: t.due_date || new Date().toISOString(),
+          type: t.priority === "high" ? "deadline" : "meeting",
+          description: t.description,
+          status: t.status,
+          completed: t.status === "completed",
+        }));
+        setEvents(mappedEvents);
+      } else {
+        setEvents([]);
+      }
+    };
+
+    loadEvents();
+  }, [user?.id]);
+
+  // ✅ الحفظ يتم مباشرة في Supabase عند الإضافة/التحديث
 
   const upcomingEvents = events
-    .filter(e => new Date(e.date) >= new Date())
+    .filter((e) => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5)
+    .slice(0, 5);
 
   // التحقق من المواعيد النهائية القريبة
   useEffect(() => {
     const checkDeadlines = () => {
-      const now = new Date()
-      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+      const now = new Date();
+      const threeDaysFromNow = new Date(
+        now.getTime() + 3 * 24 * 60 * 60 * 1000,
+      );
 
-      events.forEach(event => {
-        const eventDate = new Date(event.date)
-        
+      events.forEach((event) => {
+        const eventDate = new Date(event.date);
+
         // إشعار للمواعيد النهائية خلال 3 أيام
-        if (event.type === 'deadline' && eventDate >= now && eventDate <= threeDaysFromNow) {
-          const daysRemaining = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-          
-          const hasNotified = localStorage.getItem(`deadline_notified_${event.id}`)
+        if (
+          event.type === "deadline" &&
+          eventDate >= now &&
+          eventDate <= threeDaysFromNow
+        ) {
+          const daysRemaining = Math.ceil(
+            (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          const hasNotified = localStorage.getItem(
+            `deadline_notified_${event.id}`,
+          );
           if (!hasNotified) {
             addNotification({
-              type: 'deadline',
-              title: 'موعد نهائي قريب',
-              message: `تبقى ${daysRemaining} ${daysRemaining === 1 ? 'يوم' : 'أيام'} على ${event.title}`,
-              link: '/dashboard/schedule'
-            })
-            localStorage.setItem(`deadline_notified_${event.id}`, 'true')
+              type: "deadline",
+              title: "موعد نهائي قريب",
+              message: `تبقى ${daysRemaining} ${daysRemaining === 1 ? "يوم" : "أيام"} على ${event.title}`,
+              link: "/dashboard/schedule",
+            });
+            localStorage.setItem(`deadline_notified_${event.id}`, "true");
           }
         }
-      })
-    }
+      });
+    };
 
-    checkDeadlines()
-  }, [addNotification])
+    checkDeadlines();
+  }, [addNotification]);
 
   const getEventIcon = (type: string) => {
     switch (type) {
-      case 'meeting':
-        return <Users className="w-5 h-5" />
-      case 'deadline':
-        return <Clock className="w-5 h-5" />
-      case 'workshop':
-        return <Video className="w-5 h-5" />
-      case 'review':
-        return <FileText className="w-5 h-5" />
+      case "meeting":
+        return <Users className="w-5 h-5" />;
+      case "deadline":
+        return <Clock className="w-5 h-5" />;
+      case "workshop":
+        return <Video className="w-5 h-5" />;
+      case "review":
+        return <FileText className="w-5 h-5" />;
       default:
-        return <CalendarIcon className="w-5 h-5" />
+        return <CalendarIcon className="w-5 h-5" />;
     }
-  }
+  };
 
   const getEventTypeLabel = (type: string) => {
     switch (type) {
-      case 'meeting':
-        return 'اجتماع'
-      case 'deadline':
-        return 'موعد نهائي'
-      case 'workshop':
-        return 'ورشة عمل'
-      case 'review':
-        return 'مراجعة'
+      case "meeting":
+        return "اجتماع";
+      case "deadline":
+        return "موعد نهائي";
+      case "workshop":
+        return "ورشة عمل";
+      case "review":
+        return "مراجعة";
       default:
-        return 'حدث'
+        return "حدث";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -149,14 +170,23 @@ export default function SchedulePage() {
         <div className="lg:col-span-2 card p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-medad-ink dark:text-dark-text">
-              {currentMonth.toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' })}
+              {currentMonth.toLocaleDateString("ar-SA", {
+                month: "long",
+                year: "numeric",
+              })}
             </h2>
             <div className="flex items-center gap-2">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="p-2 hover:bg-medad-hover dark:hover:bg-dark-hover rounded-google"
-                onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}
+                onClick={() =>
+                  setCurrentMonth(
+                    new Date(
+                      currentMonth.setMonth(currentMonth.getMonth() - 1),
+                    ),
+                  )
+                }
               >
                 <ChevronRight className="w-5 h-5 text-medad-ink dark:text-dark-text" />
               </motion.button>
@@ -172,7 +202,13 @@ export default function SchedulePage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="p-2 hover:bg-medad-hover dark:hover:bg-dark-hover rounded-google"
-                onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))}
+                onClick={() =>
+                  setCurrentMonth(
+                    new Date(
+                      currentMonth.setMonth(currentMonth.getMonth() + 1),
+                    ),
+                  )
+                }
               >
                 <ChevronLeft className="w-5 h-5 text-medad-ink dark:text-dark-text" />
               </motion.button>
@@ -181,25 +217,38 @@ export default function SchedulePage() {
 
           {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-2">
-            {['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].map((day) => (
-              <div key={day} className="text-center font-bold text-gray-600 dark:text-dark-muted text-sm py-2">
+            {[
+              "الأحد",
+              "الاثنين",
+              "الثلاثاء",
+              "الأربعاء",
+              "الخميس",
+              "الجمعة",
+              "السبت",
+            ].map((day) => (
+              <div
+                key={day}
+                className="text-center font-bold text-gray-600 dark:text-dark-muted text-sm py-2"
+              >
                 {day}
               </div>
             ))}
             {Array.from({ length: 35 }, (_, i) => i + 1).map((day) => {
-              const hasEvent = events.some(e => new Date(e.date).getDate() === day)
-              const isToday = day === new Date().getDate()
-              
+              const hasEvent = events.some(
+                (e) => new Date(e.date).getDate() === day,
+              );
+              const isToday = day === new Date().getDate();
+
               return (
                 <motion.div
                   key={day}
                   whileHover={{ scale: 1.05 }}
                   className={`aspect-square flex items-center justify-center rounded-google cursor-pointer text-sm ${
                     isToday
-                      ? 'bg-primary-600 dark:bg-primary-500 text-white font-bold'
+                      ? "bg-primary-600 dark:bg-primary-500 text-white font-bold"
                       : hasEvent
-                      ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-medium'
-                      : 'hover:bg-medad-hover dark:hover:bg-dark-hover text-gray-700 dark:text-dark-text'
+                        ? "bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-medium"
+                        : "hover:bg-medad-hover dark:hover:bg-dark-hover text-gray-700 dark:text-dark-text"
                   }`}
                 >
                   {day}
@@ -207,7 +256,7 @@ export default function SchedulePage() {
                     <div className="absolute bottom-1 w-1 h-1 bg-primary-600 dark:bg-primary-400 rounded-full"></div>
                   )}
                 </motion.div>
-              )
+              );
             })}
           </div>
         </div>
@@ -230,7 +279,9 @@ export default function SchedulePage() {
                   className="p-4 bg-medad-paper dark:bg-dark-hover rounded-google hover:bg-medad-hover dark:hover:bg-dark-border transition-all cursor-pointer border-r-4 border-primary-500 dark:border-primary-400"
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`bg-gradient-to-br ${event.color} p-2 rounded-lg text-white`}>
+                    <div
+                      className={`bg-gradient-to-br ${event.color} p-2 rounded-lg text-white`}
+                    >
                       {getEventIcon(event.type)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -240,7 +291,9 @@ export default function SchedulePage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-dark-muted">
                           <CalendarIcon className="w-3 h-3" />
-                          <span>{new Date(event.date).toLocaleDateString('ar-SA')}</span>
+                          <span>
+                            {new Date(event.date).toLocaleDateString("ar-SA")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-dark-muted">
                           <Clock className="w-3 h-3" />
@@ -265,19 +318,33 @@ export default function SchedulePage() {
 
           {/* Quick Stats */}
           <div className="card p-6">
-            <h3 className="font-bold text-medad-ink dark:text-dark-text mb-4">إحصائيات سريعة</h3>
+            <h3 className="font-bold text-medad-ink dark:text-dark-text mb-4">
+              إحصائيات سريعة
+            </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-medad-paper dark:bg-dark-hover rounded-google">
-                <span className="text-sm text-gray-600 dark:text-dark-muted">اجتماعات هذا الشهر</span>
-                <span className="font-bold text-lg text-primary-600 dark:text-primary-400">4</span>
+                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                  اجتماعات هذا الشهر
+                </span>
+                <span className="font-bold text-lg text-primary-600 dark:text-primary-400">
+                  4
+                </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-medad-paper dark:bg-dark-hover rounded-google">
-                <span className="text-sm text-gray-600 dark:text-dark-muted">مواعيد نهائية قادمة</span>
-                <span className="font-bold text-lg text-red-600 dark:text-red-400">2</span>
+                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                  مواعيد نهائية قادمة
+                </span>
+                <span className="font-bold text-lg text-red-600 dark:text-red-400">
+                  2
+                </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-medad-paper dark:bg-dark-hover rounded-google">
-                <span className="text-sm text-gray-600 dark:text-dark-muted">ورش عمل</span>
-                <span className="font-bold text-lg text-green-600 dark:text-green-400">1</span>
+                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                  ورش عمل
+                </span>
+                <span className="font-bold text-lg text-green-600 dark:text-green-400">
+                  1
+                </span>
               </div>
             </div>
           </div>
@@ -286,7 +353,9 @@ export default function SchedulePage() {
 
       {/* All Events List */}
       <div className="card p-6">
-        <h2 className="text-xl font-bold text-medad-ink dark:text-dark-text mb-6">جميع الأحداث</h2>
+        <h2 className="text-xl font-bold text-medad-ink dark:text-dark-text mb-6">
+          جميع الأحداث
+        </h2>
         <div className="space-y-4">
           {events.map((event, index) => (
             <motion.div
@@ -297,12 +366,16 @@ export default function SchedulePage() {
               className="p-5 bg-medad-paper dark:bg-dark-hover rounded-google hover:bg-medad-hover dark:hover:bg-dark-border transition-all cursor-pointer"
             >
               <div className="flex items-center gap-4">
-                <div className={`bg-gradient-to-br ${event.color} p-4 rounded-xl text-white shadow-lg`}>
+                <div
+                  className={`bg-gradient-to-br ${event.color} p-4 rounded-xl text-white shadow-lg`}
+                >
                   {getEventIcon(event.type)}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-bold text-medad-ink dark:text-dark-text text-lg">{event.title}</h3>
+                    <h3 className="font-bold text-medad-ink dark:text-dark-text text-lg">
+                      {event.title}
+                    </h3>
                     <span className="text-xs px-3 py-1 bg-white dark:bg-dark-card text-medad-ink dark:text-dark-text rounded-full">
                       {getEventTypeLabel(event.type)}
                     </span>
@@ -310,7 +383,9 @@ export default function SchedulePage() {
                   <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-dark-muted">
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="w-4 h-4" />
-                      <span>{new Date(event.date).toLocaleDateString('ar-SA')}</span>
+                      <span>
+                        {new Date(event.date).toLocaleDateString("ar-SA")}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
@@ -325,7 +400,7 @@ export default function SchedulePage() {
                     {event.attendees && (
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        <span>{event.attendees.join(', ')}</span>
+                        <span>{event.attendees.join(", ")}</span>
                       </div>
                     )}
                   </div>
@@ -336,5 +411,5 @@ export default function SchedulePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

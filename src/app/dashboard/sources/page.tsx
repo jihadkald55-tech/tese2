@@ -1,9 +1,8 @@
-'use client'
+"use client";
 
-
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
   FileText,
@@ -21,162 +20,184 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  ArrowRight
-} from 'lucide-react'
-import { useUser } from '@/contexts/UserContext'
-import { saveUserData, loadUserData } from '@/lib/userDataManager'
+  ArrowRight,
+} from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
+import {
+  getUserSources,
+  addSource as addSourceDB,
+  deleteSource as deleteSourceDB,
+} from "@/lib/supabaseData";
 
 interface Source {
-  id: number
-  title: string
-  type: string
-  size: string
-  pages: number
-  uploadDate: string
-  citations: number
-  color: string
-  file?: File
-  url?: string
+  id: number;
+  title: string;
+  type: string;
+  size: string;
+  pages: number;
+  uploadDate: string;
+  citations: number;
+  color: string;
+  file?: File;
+  url?: string;
 }
 
 export default function SourcesPage() {
-  const router = useRouter()
-  const { user } = useUser()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [sources, setSources] = useState<Source[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [dragActive, setDragActive] = useState(false)
-  const [showSuccessNotification, setShowSuccessNotification] = useState(false)
-  const [uploadedFileName, setUploadedFileName] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter();
+  const { user } = useUser();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // معلومات الملف المراد رفعه
   const [uploadFile, setUploadFile] = useState<{
-    file: File | null
-    title: string
-    pages: number
-    citations: number
+    file: File | null;
+    title: string;
+    pages: number;
+    citations: number;
   }>({
     file: null,
-    title: '',
+    title: "",
     pages: 0,
-    citations: 0
-  })
+    citations: 0,
+  });
 
-  // ✅ تحميل المصادر للمستخدم الحالي فقط
+  // ✅ تحميل المصادر من Supabase
   useEffect(() => {
-    if (!user?.id) return
-    
-    const userSources = loadUserData<Source[]>(user.id, 'sources')
-    if (userSources && userSources.length > 0) {
-      setSources(userSources)
-    } else {
-      // ✅ مستخدم جديد = قائمة فارغة (لا مصادر وهمية)
-      setSources([])
-    }
-  }, [user?.id])
+    if (!user?.id) return;
 
-  // ✅ حفظ المصادر للمستخدم الحالي فقط
-  useEffect(() => {
-    if (!user?.id) return
-    
-    const sourcesToSave = sources.map(source => ({
-      ...source,
-      file: undefined // لا نحفظ الملف في localStorage
-    }))
-    saveUserData(user.id, 'sources', sourcesToSave)
-  }, [sources, user?.id])
+    const loadSources = async () => {
+      const dbSources = await getUserSources(user.id);
+      if (dbSources && dbSources.length > 0) {
+        const mappedSources: Source[] = dbSources.map((s, index) => ({
+          id: index + 1,
+          dbId: s.id,
+          title: s.title,
+          type: s.type || "pdf",
+          size: "—",
+          pages: 0,
+          uploadDate:
+            s.created_at?.split("T")[0] ||
+            new Date().toISOString().split("T")[0],
+          citations: 0,
+          color: [
+            "from-red-500 to-red-600",
+            "from-blue-500 to-blue-600",
+            "from-green-500 to-green-600",
+            "from-purple-500 to-purple-600",
+          ][index % 4],
+        }));
+        setSources(mappedSources);
+      } else {
+        setSources([]);
+      }
+    };
+
+    loadSources();
+  }, [user?.id]);
+
+  // ✅ الحفظ يتم عند الإضافة/الحذف مباشرة في Supabase
 
   const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0])
+      handleFileSelect(e.dataTransfer.files[0]);
     }
-  }
+  };
 
   const handleFileSelect = (file: File) => {
     // التحقق من نوع الملف
-    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/msword']
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "application/msword",
+    ];
     if (!allowedTypes.includes(file.type)) {
-      alert('نوع الملف غير مدعوم. يرجى رفع ملف PDF أو Word أو TXT')
-      return
+      alert("نوع الملف غير مدعوم. يرجى رفع ملف PDF أو Word أو TXT");
+      return;
     }
 
     // التحقق من حجم الملف (50 MB)
-    const maxSize = 50 * 1024 * 1024
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('حجم الملف كبير جداً. الحد الأقصى 50 MB')
-      return
+      alert("حجم الملف كبير جداً. الحد الأقصى 50 MB");
+      return;
     }
 
-    const fileName = file.name.replace(/\.[^/.]+$/, '') // إزالة الامتداد
+    const fileName = file.name.replace(/\.[^/.]+$/, ""); // إزالة الامتداد
     setUploadFile({
       file,
       title: fileName,
       pages: Math.floor(Math.random() * 200) + 10, // تقدير عشوائي للصفحات
-      citations: 0
-    })
-    setShowUploadModal(true)
-  }
+      citations: 0,
+    });
+    setShowUploadModal(true);
+  };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0])
+      handleFileSelect(e.target.files[0]);
     }
-  }
+  };
 
   const handleUpload = async () => {
     if (!uploadFile.file || !uploadFile.title) {
-      alert('الرجاء إدخال عنوان المصدر')
-      return
+      alert("الرجاء إدخال عنوان المصدر");
+      return;
     }
 
-    setUploading(true)
-    setUploadProgress(0)
+    setUploading(true);
+    setUploadProgress(0);
 
     // محاكاة رفع الملف
     const interval = setInterval(() => {
-      setUploadProgress(prev => {
+      setUploadProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(interval)
-          return 100
+          clearInterval(interval);
+          return 100;
         }
-        return prev + 10
-      })
-    }, 200)
+        return prev + 10;
+      });
+    }, 200);
 
     // الانتظار حتى اكتمال الرفع
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const fileExtension = uploadFile.file.name.split('.').pop()?.toLowerCase() || 'pdf'
-    const fileSizeInMB = (uploadFile.file.size / (1024 * 1024)).toFixed(1)
-    
+    const fileExtension =
+      uploadFile.file.name.split(".").pop()?.toLowerCase() || "pdf";
+    const fileSizeInMB = (uploadFile.file.size / (1024 * 1024)).toFixed(1);
+
     const colors = [
-      'from-red-500 to-red-600',
-      'from-blue-500 to-blue-600',
-      'from-green-500 to-green-600',
-      'from-purple-500 to-purple-600',
-      'from-yellow-500 to-yellow-600',
-      'from-pink-500 to-pink-600',
-      'from-indigo-500 to-indigo-600'
-    ]
-    const randomColor = colors[Math.floor(Math.random() * colors.length)]
+      "from-red-500 to-red-600",
+      "from-blue-500 to-blue-600",
+      "from-green-500 to-green-600",
+      "from-purple-500 to-purple-600",
+      "from-yellow-500 to-yellow-600",
+      "from-pink-500 to-pink-600",
+      "from-indigo-500 to-indigo-600",
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
     const newSource: Source = {
       id: Date.now(),
@@ -184,79 +205,107 @@ export default function SourcesPage() {
       type: fileExtension,
       size: `${fileSizeInMB} MB`,
       pages: uploadFile.pages,
-      uploadDate: new Date().toISOString().split('T')[0],
+      uploadDate: new Date().toISOString().split("T")[0],
       citations: uploadFile.citations,
       color: randomColor,
-      file: uploadFile.file
+      file: uploadFile.file,
+    };
+
+    setSources((prev) => [newSource, ...prev]);
+
+    // ✅ حفظ في Supabase
+    if (user?.id) {
+      await addSourceDB(user.id, {
+        title: uploadFile.title,
+        type:
+          fileExtension === "pdf"
+            ? "article"
+            : fileExtension === "docx"
+              ? "book"
+              : "other",
+        notes: `${fileSizeInMB} MB - ${uploadFile.pages} صفحة`,
+      });
     }
 
-    setSources(prev => [newSource, ...prev])
-    
     // حفظ اسم الملف للإشعار
-    setUploadedFileName(uploadFile.title)
-    
-    setUploading(false)
-    setUploadProgress(0)
-    
+    setUploadedFileName(uploadFile.title);
+
+    setUploading(false);
+    setUploadProgress(0);
+
     // إغلاق المودال بعد ثانية
     setTimeout(() => {
-      setShowUploadModal(false)
+      setShowUploadModal(false);
       setUploadFile({
         file: null,
-        title: '',
+        title: "",
         pages: 0,
-        citations: 0
-      })
-      
+        citations: 0,
+      });
+
       // إظهار إشعار النجاح
-      setShowSuccessNotification(true)
-      
+      setShowSuccessNotification(true);
+
       // إخفاء الإشعار بعد 4 ثواني
       setTimeout(() => {
-        setShowSuccessNotification(false)
-        setUploadedFileName('')
-      }, 4000)
-    }, 1000)
-  }
+        setShowSuccessNotification(false);
+        setUploadedFileName("");
+      }, 4000);
+    }, 1000);
+  };
 
-  const handleDeleteSource = (id: number) => {
-    if (confirm('هل أنت متأكد من حذف هذا المصدر؟')) {
-      setSources(prev => prev.filter(source => source.id !== id))
+  const handleDeleteSource = async (id: number) => {
+    if (confirm("هل أنت متأكد من حذف هذا المصدر؟")) {
+      const sourceToDelete = sources.find((s) => s.id === id);
+      // ✅ حذف من Supabase
+      if (user?.id && (sourceToDelete as any)?.dbId) {
+        await deleteSourceDB((sourceToDelete as any).dbId, user.id);
+      }
+      setSources((prev) => prev.filter((source) => source.id !== id));
     }
-  }
+  };
 
   const handleDownloadSource = (source: Source) => {
     if (source.file) {
-      const url = URL.createObjectURL(source.file)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = source.file.name
-      a.click()
-      URL.revokeObjectURL(url)
+      const url = URL.createObjectURL(source.file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = source.file.name;
+      a.click();
+      URL.revokeObjectURL(url);
     } else {
-      alert('هذا مصدر افتراضي. يمكنك تحميل المصادر التي رفعتها فقط.')
+      alert("هذا مصدر افتراضي. يمكنك تحميل المصادر التي رفعتها فقط.");
     }
-  }
+  };
 
-  const filteredSources = sources.filter(source => {
-    const matchesSearch = source.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesFilter = filterType === 'all' || source.type === filterType
-    return matchesSearch && matchesFilter
-  })
+  const filteredSources = sources.filter((source) => {
+    const matchesSearch = source.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesFilter = filterType === "all" || source.type === filterType;
+    return matchesSearch && matchesFilter;
+  });
 
   const stats = [
-    { label: 'إجمالي المصادر', value: sources.length, icon: FileText },
-    { label: 'الاقتباسات', value: sources.reduce((sum, s) => sum + s.citations, 0), icon: BookMarked },
-    { 
-      label: 'تم الرفع هذا الشهر', 
-      value: sources.filter(s => {
-        const date = new Date(s.uploadDate)
-        const now = new Date()
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      }).length, 
-      icon: Upload 
-    }
-  ]
+    { label: "إجمالي المصادر", value: sources.length, icon: FileText },
+    {
+      label: "الاقتباسات",
+      value: sources.reduce((sum, s) => sum + s.citations, 0),
+      icon: BookMarked,
+    },
+    {
+      label: "تم الرفع هذا الشهر",
+      value: sources.filter((s) => {
+        const date = new Date(s.uploadDate);
+        const now = new Date();
+        return (
+          date.getMonth() === now.getMonth() &&
+          date.getFullYear() === now.getFullYear()
+        );
+      }).length,
+      icon: Upload,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -305,8 +354,12 @@ export default function SourcesPage() {
                 <stat.icon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
               </div>
               <div>
-                <p className="text-gray-600 dark:text-dark-muted text-sm">{stat.label}</p>
-                <p className="text-2xl font-bold text-medad-ink dark:text-dark-text">{stat.value}</p>
+                <p className="text-gray-600 dark:text-dark-muted text-sm">
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold text-medad-ink dark:text-dark-text">
+                  {stat.value}
+                </p>
               </div>
             </div>
           </motion.div>
@@ -370,7 +423,9 @@ export default function SourcesPage() {
               className="card p-6"
             >
               <div className="flex items-start gap-4">
-                <div className={`bg-gradient-to-br ${source.color} p-4 rounded-xl shadow-lg flex-shrink-0`}>
+                <div
+                  className={`bg-gradient-to-br ${source.color} p-4 rounded-xl shadow-lg flex-shrink-0`}
+                >
                   <FileText className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -395,7 +450,7 @@ export default function SourcesPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Actions */}
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-medad-border dark:border-dark-border">
                 <motion.button
@@ -472,13 +527,17 @@ export default function SourcesPage() {
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-google p-12 text-center cursor-pointer transition-all ${
                       dragActive
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                        : 'border-medad-border dark:border-dark-border hover:border-primary-400 dark:hover:border-primary-600'
+                        ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
+                        : "border-medad-border dark:border-dark-border hover:border-primary-400 dark:hover:border-primary-600"
                     }`}
                   >
-                    <Upload className={`w-16 h-16 mx-auto mb-4 ${dragActive ? 'text-primary-600' : 'text-gray-400'}`} />
+                    <Upload
+                      className={`w-16 h-16 mx-auto mb-4 ${dragActive ? "text-primary-600" : "text-gray-400"}`}
+                    />
                     <h3 className="text-lg font-bold text-medad-ink dark:text-dark-text mb-2">
-                      {dragActive ? 'أفلت الملف هنا' : 'اسحب الملف أو انقر للاختيار'}
+                      {dragActive
+                        ? "أفلت الملف هنا"
+                        : "اسحب الملف أو انقر للاختيار"}
                     </h3>
                     <p className="text-gray-600 dark:text-dark-muted mb-4">
                       يدعم: PDF, DOCX, DOC, TXT (حتى 50 MB)
@@ -508,7 +567,14 @@ export default function SourcesPage() {
                       </div>
                       {!uploading && (
                         <button
-                          onClick={() => setUploadFile({ file: null, title: '', pages: 0, citations: 0 })}
+                          onClick={() =>
+                            setUploadFile({
+                              file: null,
+                              title: "",
+                              pages: 0,
+                              citations: 0,
+                            })
+                          }
                           className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-google transition-colors"
                         >
                           <X className="w-5 h-5 text-red-600" />
@@ -524,7 +590,12 @@ export default function SourcesPage() {
                       <input
                         type="text"
                         value={uploadFile.title}
-                        onChange={(e) => setUploadFile({ ...uploadFile, title: e.target.value })}
+                        onChange={(e) =>
+                          setUploadFile({
+                            ...uploadFile,
+                            title: e.target.value,
+                          })
+                        }
                         placeholder="أدخل عنوان المصدر"
                         disabled={uploading}
                         className="input-field"
@@ -538,8 +609,13 @@ export default function SourcesPage() {
                         </label>
                         <input
                           type="number"
-                          value={uploadFile.pages || ''}
-                          onChange={(e) => setUploadFile({ ...uploadFile, pages: parseInt(e.target.value) || 0 })}
+                          value={uploadFile.pages || ""}
+                          onChange={(e) =>
+                            setUploadFile({
+                              ...uploadFile,
+                              pages: parseInt(e.target.value) || 0,
+                            })
+                          }
                           placeholder="مثال: 150"
                           disabled={uploading}
                           className="input-field"
@@ -552,8 +628,13 @@ export default function SourcesPage() {
                         </label>
                         <input
                           type="number"
-                          value={uploadFile.citations || ''}
-                          onChange={(e) => setUploadFile({ ...uploadFile, citations: parseInt(e.target.value) || 0 })}
+                          value={uploadFile.citations || ""}
+                          onChange={(e) =>
+                            setUploadFile({
+                              ...uploadFile,
+                              citations: parseInt(e.target.value) || 0,
+                            })
+                          }
                           placeholder="مثال: 5"
                           disabled={uploading}
                           className="input-field"
@@ -565,8 +646,12 @@ export default function SourcesPage() {
                     {uploading && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-dark-muted">جاري الرفع...</span>
-                          <span className="text-primary-600 dark:text-primary-400 font-medium">{uploadProgress}%</span>
+                          <span className="text-gray-600 dark:text-dark-muted">
+                            جاري الرفع...
+                          </span>
+                          <span className="text-primary-600 dark:text-primary-400 font-medium">
+                            {uploadProgress}%
+                          </span>
                         </div>
                         <div className="h-2 bg-medad-paper dark:bg-dark-hover rounded-full overflow-hidden">
                           <motion.div
@@ -647,5 +732,5 @@ export default function SourcesPage() {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }

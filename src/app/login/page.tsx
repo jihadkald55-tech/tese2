@@ -1,33 +1,43 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, BookOpen, Sparkles, GraduationCap } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useUser } from '@/contexts/UserContext'
+import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  BookOpen,
+  Sparkles,
+  GraduationCap,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [userType, setUserType] = useState<'student' | 'professor' | 'admin'>('student')
-  const [error, setError] = useState('')
-  const router = useRouter()
-  const { login } = useUser()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [userType, setUserType] = useState<"student" | "professor" | "admin">(
+    "student",
+  );
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const { login } = useUser();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    
-    const success = login(email, password, userType)
-    
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    const success = await login(email, password, userType);
+
     if (success) {
-      router.push('/dashboard')
+      router.push("/dashboard");
     } else {
-      setError('البريد الإلكتروني أو كلمة المرور غير صحيحة')
+      setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
     }
-  }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -35,10 +45,10 @@ export default function LoginPage() {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  }
+        delayChildren: 0.2,
+      },
+    },
+  };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
@@ -46,11 +56,11 @@ export default function LoginPage() {
       y: 0,
       opacity: 1,
       transition: {
-        type: 'spring',
-        stiffness: 100
-      }
-    }
-  }
+        type: "spring",
+        stiffness: 100,
+      },
+    },
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-purple-50 dark:from-dark-bg dark:via-dark-card dark:to-dark-bg flex items-center justify-center p-4 relative overflow-hidden">
@@ -65,7 +75,7 @@ export default function LoginPage() {
           transition={{
             duration: 20,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
         <motion.div
@@ -77,7 +87,7 @@ export default function LoginPage() {
           transition={{
             duration: 15,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
       </div>
@@ -96,7 +106,7 @@ export default function LoginPage() {
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+            transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
             className="mb-8"
           >
             <div className="flex items-center gap-3 mb-6">
@@ -115,22 +125,24 @@ export default function LoginPage() {
           >
             رحلة بحثك الأكاديمي
             <br />
-            <span className="text-primary-600 dark:text-primary-400">تبدأ من هنا</span>
+            <span className="text-primary-600 dark:text-primary-400">
+              تبدأ من هنا
+            </span>
           </motion.h2>
 
           <motion.p
             variants={itemVariants}
             className="text-lg text-gray-600 dark:text-dark-muted mb-8 leading-relaxed"
           >
-            نظام متكامل لإدارة أبحاث التخرج بتجربة ملهمة واحترافية،
-            مصمم خصيصاً للبيئة الأكاديمية العربية
+            نظام متكامل لإدارة أبحاث التخرج بتجربة ملهمة واحترافية، مصمم خصيصاً
+            للبيئة الأكاديمية العربية
           </motion.p>
 
           <motion.div variants={itemVariants} className="space-y-4">
             {[
-              { icon: Sparkles, text: 'مساعد ذكي لدعم بحثك' },
-              { icon: BookOpen, text: 'إدارة مصادر ومراجع متقدمة' },
-              { icon: GraduationCap, text: 'تواصل مباشر مع المشرف' }
+              { icon: Sparkles, text: "مساعد ذكي لدعم بحثك" },
+              { icon: BookOpen, text: "إدارة مصادر ومراجع متقدمة" },
+              { icon: GraduationCap, text: "تواصل مباشر مع المشرف" },
             ].map((feature, index) => (
               <motion.div
                 key={index}
@@ -156,24 +168,26 @@ export default function LoginPage() {
             <h3 className="text-3xl font-bold text-medad-ink dark:text-dark-text mb-2">
               مرحباً بعودتك
             </h3>
-            <p className="text-gray-600 dark:text-dark-muted">قم بتسجيل الدخول للمتابعة</p>
+            <p className="text-gray-600 dark:text-dark-muted">
+              قم بتسجيل الدخول للمتابعة
+            </p>
           </motion.div>
 
           {/* اختيار نوع المستخدم */}
           <motion.div variants={itemVariants} className="mb-6">
             <div className="grid grid-cols-3 gap-2 p-1 bg-medad-paper dark:bg-dark-hover rounded-google">
               {[
-                { id: 'student' as const, label: 'طالب', icon: GraduationCap },
-                { id: 'professor' as const, label: 'أستاذ', icon: BookOpen },
-                { id: 'admin' as const, label: 'مدير', icon: Sparkles }
+                { id: "student" as const, label: "طالب", icon: GraduationCap },
+                { id: "professor" as const, label: "أستاذ", icon: BookOpen },
+                { id: "admin" as const, label: "مدير", icon: Sparkles },
               ].map((type) => (
                 <motion.button
                   key={type.id}
                   onClick={() => setUserType(type.id)}
                   className={`py-2.5 px-4 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
                     userType === type.id
-                      ? 'bg-white dark:bg-dark-bg text-primary-600 dark:text-primary-400 shadow-google dark:shadow-dark'
-                      : 'text-gray-600 dark:text-dark-muted hover:text-medad-ink dark:hover:text-dark-text'
+                      ? "bg-white dark:bg-dark-bg text-primary-600 dark:text-primary-400 shadow-google dark:shadow-dark"
+                      : "text-gray-600 dark:text-dark-muted hover:text-medad-ink dark:hover:text-dark-text"
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -211,7 +225,7 @@ export default function LoginPage() {
               </label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input-field pr-12"
@@ -243,7 +257,9 @@ export default function LoginPage() {
                   type="checkbox"
                   className="w-4 h-4 text-primary-600 border-medad-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-600 dark:text-dark-muted">تذكرني</span>
+                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                  تذكرني
+                </span>
               </label>
               <Link
                 href="/forgot-password"
@@ -295,7 +311,7 @@ export default function LoginPage() {
               variants={itemVariants}
               className="text-center text-gray-600 dark:text-dark-muted text-sm"
             >
-              ليس لديك حساب؟{' '}
+              ليس لديك حساب؟{" "}
               <Link
                 href="/register"
                 className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-500 font-medium transition-colors"
@@ -307,5 +323,5 @@ export default function LoginPage() {
         </motion.div>
       </motion.div>
     </div>
-  )
+  );
 }
