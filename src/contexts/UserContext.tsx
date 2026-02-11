@@ -51,15 +51,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // تحميل بيانات المستخدم من قاعدة البيانات
   const loadUserData = async (authUser: SupabaseUser): Promise<boolean> => {
     try {
+      console.log("Loading user data for:", authUser.id, authUser.email);
+
       const { data, error } = await supabase
         .from("users")
         .select("*")
         .eq("id", authUser.id)
         .single();
 
+      console.log("User data query result:", { data, error });
+
       if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
+        console.log("User data found:", data);
         setUser({
           id: data.id,
           name: data.name,
@@ -93,6 +98,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           .single();
 
         if (newData) {
+          console.log("User record created successfully:", newData);
           setUser({
             id: newData.id,
             name: newData.name,
@@ -139,6 +145,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     role?: UserRole,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      console.log("UserContext: Login started for", email);
       setLoading(true);
 
       // تسجيل الدخول عبر Supabase Auth
@@ -147,10 +154,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
         password,
       });
 
+      console.log("Supabase auth response:", { data, error });
+
       if (error) throw error;
 
       if (data.user) {
+        console.log("User authenticated, loading user data...");
         const loaded = await loadUserData(data.user);
+        console.log("User data loaded:", loaded);
+
         if (loaded) {
           return { success: true };
         } else {
@@ -173,8 +185,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         errorMessage = "البريد الإلكتروني أو كلمة المرور غير صحيحة";
       } else if (error.message.includes("Email not confirmed")) {
         errorMessage = "يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول";
-      } else {
-        errorMessage = error.message || errorMessage;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
       return { success: false, error: errorMessage };

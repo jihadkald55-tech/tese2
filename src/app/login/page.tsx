@@ -30,12 +30,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    const result = await login(email, password, userType);
+    console.log("Login attempt:", { email, userType });
 
-    if (result.success) {
-      router.push("/dashboard");
-    } else {
-      setError(result.error || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+    try {
+      const result = await login(email, password, userType);
+      console.log("Login result:", result);
+
+      if (result.success) {
+        router.push("/dashboard");
+      } else {
+        setError(result.error || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.");
     }
   };
 
