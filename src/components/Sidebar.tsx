@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   FileText,
@@ -17,39 +17,70 @@ import {
   Users,
   Calendar,
   Menu,
-  X
-} from 'lucide-react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useUser } from '@/contexts/UserContext'
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
 
 interface SidebarProps {
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const pathname = usePathname()
-  const { user } = useUser()
+  const pathname = usePathname();
+  const { user } = useUser();
 
   const menuItems = [
-    { id: 'home', label: 'الرئيسية', icon: Home, href: '/dashboard' },
-    { id: 'research', label: 'بحثي', icon: FileText, href: '/dashboard/research' },
-    { id: 'sources', label: 'المصادر', icon: BookOpen, href: '/dashboard/sources' },
-    { id: 'chat', label: 'المحادثات', icon: MessageSquare, href: '/dashboard/chat', badge: 3 },
-    { id: 'progress', label: 'التقدم', icon: BarChart3, href: '/dashboard/progress' },
-    { id: 'schedule', label: 'الجدول', icon: Calendar, href: '/dashboard/schedule' },
-  ]
+    { id: "home", label: "الرئيسية", icon: Home, href: "/dashboard" },
+    {
+      id: "research",
+      label: "بحثي",
+      icon: FileText,
+      href: "/dashboard/research",
+    },
+    {
+      id: "sources",
+      label: "المصادر",
+      icon: BookOpen,
+      href: "/dashboard/sources",
+    },
+    {
+      id: "chat",
+      label: "المحادثات",
+      icon: MessageSquare,
+      href: "/dashboard/chat",
+      badge: 3,
+    },
+    {
+      id: "progress",
+      label: "التقدم",
+      icon: BarChart3,
+      href: "/dashboard/progress",
+    },
+    {
+      id: "schedule",
+      label: "الجدول",
+      icon: Calendar,
+      href: "/dashboard/schedule",
+    },
+  ];
 
   const bottomItems = [
-    { id: 'settings', label: 'الإعدادات', icon: Settings, href: '/dashboard/settings' },
-    { id: 'logout', label: 'تسجيل الخروج', icon: LogOut, href: '/login' },
-  ]
+    {
+      id: "settings",
+      label: "الإعدادات",
+      icon: Settings,
+      href: "/dashboard/settings",
+    },
+    { id: "logout", label: "تسجيل الخروج", icon: LogOut, href: "/login" },
+  ];
 
   const sidebarVariants = {
     open: { x: 0 },
-    closed: { x: '100%' }
-  }
+    closed: { x: "100%" },
+  };
 
   return (
     <>
@@ -70,8 +101,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <motion.aside
         variants={sidebarVariants}
         initial="open"
-        animate={isOpen ? 'open' : 'closed'}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        animate={isOpen ? "open" : "closed"}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="fixed right-0 top-0 h-full w-72 bg-white dark:bg-dark-card border-l border-medad-border dark:border-dark-border shadow-google-lg dark:shadow-dark z-50 flex flex-col"
       >
         {/* Header */}
@@ -99,13 +130,18 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             className="flex items-center gap-3 p-3 bg-medad-paper dark:bg-dark-hover rounded-google cursor-pointer hover:bg-medad-hover dark:hover:bg-dark-border transition-all"
           >
             <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
-              {user?.name?.charAt(0) || 'ض'}
+              {user?.name?.charAt(0) || "ض"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-medad-ink dark:text-dark-text text-sm truncate">{user?.name || 'ضيف'}</p>
+              <p className="font-semibold text-medad-ink dark:text-dark-text text-sm truncate">
+                {user?.name || "ضيف"}
+              </p>
               <p className="text-xs text-gray-500 dark:text-dark-muted truncate">
-                {user?.role === 'student' ? 'طالب' : user?.role === 'professor' ? 'أستاذ' : 'مدير'} 
-                {user?.department ? ` - ${user.department}` : ''}
+                {user?.role === "student"
+                  ? "طالب"
+                  : user?.role === "professor"
+                    ? "أستاذ"
+                    : "مدير"}
               </p>
             </div>
           </motion.div>
@@ -114,7 +150,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {menuItems.map((item, index) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href;
             return (
               <motion.div
                 key={item.id}
@@ -124,7 +160,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               >
                 <Link
                   href={item.href}
-                  className={isActive ? 'sidebar-item-active' : 'sidebar-item'}
+                  className={isActive ? "sidebar-item-active" : "sidebar-item"}
                   onClick={() => setIsOpen(false)}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -134,10 +170,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                       {item.badge}
                     </span>
                   )}
-                  <ChevronRight className={`w-4 h-4 transition-transform ${isActive ? 'rotate-180' : ''}`} />
+                  <ChevronRight
+                    className={`w-4 h-4 transition-transform ${isActive ? "rotate-180" : ""}`}
+                  />
                 </Link>
               </motion.div>
-            )
+            );
           })}
 
           {/* AI Assistant Button */}
@@ -154,26 +192,26 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* Bottom Items */}
         <div className="border-t border-medad-border dark:border-dark-border p-4 space-y-1">
           {bottomItems.map((item) => {
-            const isLogout = item.id === 'logout'
+            const isLogout = item.id === "logout";
             return (
               <Link
                 key={item.id}
                 href={item.href}
                 className="sidebar-item"
                 onClick={() => {
-                  setIsOpen(false)
-                  if (isLogout && typeof window !== 'undefined') {
-                    localStorage.removeItem('currentUser')
+                  setIsOpen(false);
+                  if (isLogout && typeof window !== "undefined") {
+                    localStorage.removeItem("currentUser");
                   }
                 }}
               >
                 <item.icon className="w-5 h-5" />
                 <span className="flex-1">{item.label}</span>
               </Link>
-            )
+            );
           })}
         </div>
       </motion.aside>
     </>
-  )
+  );
 }
