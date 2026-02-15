@@ -211,35 +211,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created in Auth:", data.user.id);
 
-        // ✅ يتم إنشاء المستخدم في جدول users تلقائياً عبر trigger
-        // انتظر للتأكد من تنفيذ الـ trigger
+        // إنشاء السجل مباشرة في جدول users
+        const { error: insertError } = await supabase.from("users").insert({
+          id: data.user.id,
+          email: data.user.email!,
+          name: name,
+          user_type: role,
+        });
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          // قد يكون السجل موجود بالفعل من trigger، نحاول تحميل البيانات
+        }
+
+        // تحميل بيانات المستخدم
+        const loaded = await loadUserData(data.user);
+        console.log("Load user data result:", loaded);
+
+        if (loaded) {
+          return { success: true };
+        }
+
+        // محاولة ثانية بعد ثانية واحدة
         await new Promise((resolve) => setTimeout(resolve, 1000));
+        const retryLoaded = await loadUserData(data.user);
 
-        // محاولة أولى
-        let loaded = await loadUserData(data.user);
-        console.log("First load attempt:", loaded);
-
-        if (loaded) {
-          return { success: true };
-        }
-
-        // محاولة ثانية بعد 2 ثانية
-        console.log("Retrying after 2 seconds...");
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        loaded = await loadUserData(data.user);
-        console.log("Second load attempt:", loaded);
-
-        if (loaded) {
-          return { success: true };
-        }
-
-        // محاولة ثالثة وأخيرة بعد 3 ثوانٍ إضافية
-        console.log("Final retry after 3 more seconds...");
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        loaded = await loadUserData(data.user);
-        console.log("Third load attempt:", loaded);
-
-        if (loaded) {
+        if (retryLoaded) {
           return { success: true };
         }
 
@@ -255,9 +252,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       let errorMessage = "حدث خطأ أثناء إنشاء الحساب";
       // التعامل مع أخطاء معينة
-      if (error.message?.includes("already registered")) {
+      if (
+        error.message?.includes("already registered") ||
+        error.message?.includes("User already registered")
+      ) {
         errorMessage = "البريد الإلكتروني مستخدم بالفعل";
-      } else {
+      } else if (error.message) {
         errorMessage = error.message;
       }
 
