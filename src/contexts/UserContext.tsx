@@ -171,10 +171,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error("Login error:", error);
       let errorMessage = "حدث خطأ أثناء تسجيل الدخول";
 
-      if (error.message === "Invalid login credentials") {
+      if (
+        error.message === "Invalid login credentials" ||
+        error.message?.includes("Invalid")
+      ) {
         errorMessage = "البريد الإلكتروني أو كلمة المرور غير صحيحة";
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "يرجى تأكيد البريد الإلكتروني قبل تسجيل الدخول";
+      } else if (error.message?.includes("Email not confirmed")) {
+        errorMessage =
+          "حسابك قيد التفعيل. يرجى الانتظار لحظات ثم المحاولة مرة أخرى";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -199,6 +203,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
+          emailRedirectTo: undefined,
           data: {
             name,
             user_type: role,
@@ -211,6 +216,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created in Auth:", data.user.id);
 
+        // انتظار قليل للسماح بتنفيذ triggers
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         // إنشاء السجل مباشرة في جدول users
         const { error: insertError } = await supabase.from("users").insert({
           id: data.user.id,
@@ -219,31 +227,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           user_type: role,
         });
 
-        if (insertError) {
+        if (insertError && !insertError.message?.includes("duplicate")) {
           console.error("Insert error:", insertError);
-          // قد يكون السجل موجود بالفعل من trigger، نحاول تحميل البيانات
+          throw new Error("فشل في حفظ بيانات المستخدم");
         }
 
-        // تحميل بيانات المستخدم
-        const loaded = await loadUserData(data.user);
-        console.log("Load user data result:", loaded);
+        // تحميل بيانات المستخدم مباشرة
+        setUser({
+          id: data.user.id,
+          name: name,
+          email: data.user.email!,
+          role: role,
+        });
 
-        if (loaded) {
-          return { success: true };
-        }
-
-        // محاولة ثانية بعد ثانية واحدة
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const retryLoaded = await loadUserData(data.user);
-
-        if (retryLoaded) {
-          return { success: true };
-        }
-
-        return {
-          success: false,
-          error: "تم إنشاء الحساب ولكن فشل تحميل البيانات. يرجى تسجيل الدخول.",
-        };
+        return { success: true };
       }
 
       return { success: false, error: "فشل إنشاء الحساب" };
@@ -251,12 +248,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error("Registration error:", error);
 
       let errorMessage = "حدث خطأ أثناء إنشاء الحساب";
-      // التعامل مع أخطاء معينة
+
       if (
         error.message?.includes("already registered") ||
         error.message?.includes("User already registered")
       ) {
         errorMessage = "البريد الإلكتروني مستخدم بالفعل";
+      } else if (error.message?.includes("Email rate limit")) {
+        errorMessage = "تم إرسال عدد كبير من الطلبات. يرجى الانتظار قليلاً";
+      } else if (error.message?.includes("Password")) {
+        errorMessage = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
+      } else if (error.message?.includes("Invalid email")) {
+        errorMessage = "البريد الإلكتروني غير صحيح";
       } else if (error.message) {
         errorMessage = error.message;
       }
