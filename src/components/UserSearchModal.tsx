@@ -207,11 +207,6 @@ export default function UserSearchModal({
                               <p className="text-sm text-gray-600 dark:text-dark-muted truncate">
                                 {user.email}
                               </p>
-                              {user.department && (
-                                <p className="text-xs text-gray-500 dark:text-dark-muted mt-1">
-                                  {user.department}
-                                </p>
-                              )}
                             </div>
 
                             {/* Add Button */}
