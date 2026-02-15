@@ -1,111 +1,218 @@
-'use client'
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { saveUserData, loadUserData } from '@/lib/userDataManager'
-import { useUser } from './UserContext'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useUser } from "./UserContext";
+import {
+  getUserNotifications,
+  markNotificationAsRead,
+} from "@/lib/supabaseData";
+import { supabase } from "@/lib/supabase";
 
 export interface Notification {
-  id: string
-  type: 'message' | 'deadline' | 'research' | 'system'
-  title: string
-  message: string
-  timestamp: string
-  read: boolean
-  link?: string
+  id: string;
+  type:
+    | "message"
+    | "deadline"
+    | "research"
+    | "system"
+    | "info"
+    | "warning"
+    | "success"
+    | "error";
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  link?: string;
 }
 
 interface NotificationContextType {
-  notifications: Notification[]
-  unreadCount: number
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
-  markAsRead: (id: string) => void
-  markAllAsRead: () => void
-  deleteNotification: (id: string) => void
-  clearAll: () => void
+  notifications: Notification[];
+  unreadCount: number;
+  addNotification: (
+    notification: Omit<Notification, "id" | "timestamp" | "read">,
+  ) => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  deleteNotification: (id: string) => void;
+  clearAll: () => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
+const NotificationContext = createContext<NotificationContextType | undefined>(
+  undefined,
+);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { user } = useUser()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [mounted, setMounted] = useState(false)
+  const { user } = useUser();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
-  // تحميل الإشعارات من localStorage للمستخدم الحالي فقط
+  // ✅ تحميل الإشعارات من Supabase
   useEffect(() => {
-    setMounted(true)
-    if (typeof window === 'undefined' || !user?.id) return
-    
-    const userNotifications = loadUserData<Notification[]>(user.id, 'notifications')
-    if (userNotifications && userNotifications.length > 0) {
-      setNotifications(userNotifications)
-      setUnreadCount(userNotifications.filter((n: Notification) => !n.read).length)
+    setMounted(true);
+    if (!user?.id) return;
+
+    loadNotifications();
+  }, [user?.id]);
+
+  const loadNotifications = async () => {
+    if (!user?.id) return;
+
+    const dbNotifications = await getUserNotifications(user.id);
+    if (dbNotifications && dbNotifications.length > 0) {
+      const mappedNotifications: Notification[] = dbNotifications.map((n) => ({
+        id: n.id || "",
+        type: (n.type as any) || "info",
+        title: n.title,
+        message: n.message,
+        timestamp: n.created_at || new Date().toISOString(),
+        read: n.is_read || false,
+      }));
+      setNotifications(mappedNotifications);
+      setUnreadCount(mappedNotifications.filter((n) => !n.read).length);
     } else {
-      // ✅ مستخدم جديد = لا إشعارات (وليس إشعارات وهمية)
-      setNotifications([])
-      setUnreadCount(0)
+      setNotifications([]);
+      setUnreadCount(0);
     }
-  }, [user?.id])
+  };
 
-  // حفظ الإشعارات في localStorage للمستخدم الحالي
+  // ✅ الاستماع للتحديثات في الوقت الفعلي
   useEffect(() => {
-    if (typeof window === 'undefined' || !user?.id) return
-    if (notifications.length > 0 || mounted) {
-      saveUserData(user.id, 'notifications', notifications)
-    }
-  }, [notifications, user?.id, mounted])
+    if (!user?.id) return;
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      read: false
+    const channel = supabase
+      .channel("notifications-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Notification change detected:", payload);
+          loadNotifications();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  const addNotification = async (
+    notification: Omit<Notification, "id" | "timestamp" | "read">,
+  ) => {
+    if (!user?.id) return;
+
+    // ✅ حفظ في Supabase
+    const { data, error } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: user.id,
+        title: notification.title,
+        message: notification.message,
+        type:
+          notification.type === "message" ||
+          notification.type === "deadline" ||
+          notification.type === "research" ||
+          notification.type === "system"
+            ? "info"
+            : notification.type,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding notification:", error);
+      // Fallback: add locally only
+      const newNotification: Notification = {
+        ...notification,
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+      setNotifications((prev) => [newNotification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    } else {
+      // سيتم تحديث القائمة تلقائياً من خلال realtime subscription
     }
-    
-    setNotifications(prev => [newNotification, ...prev])
-    setUnreadCount(prev => prev + 1)
 
     // إشعار متصفح
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if ("Notification" in window && Notification.permission === "granted") {
       new Notification(notification.title, {
         body: notification.message,
-        icon: '/icon.png'
-      })
+        icon: "/icon.png",
+      });
     }
-  }
+  };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    )
-    setUnreadCount(prev => Math.max(0, prev - 1))
-  }
+  const markAsRead = async (id: string) => {
+    if (!user?.id) return;
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    setUnreadCount(0)
-  }
+    // تحديث محلي فوري
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => {
-      const notification = prev.find(n => n.id === id)
-      const newNotifications = prev.filter(n => n.id !== id)
-      
-      if (notification && !notification.read) {
-        setUnreadCount(prevCount => Math.max(0, prevCount - 1))
-      }
-      
-      return newNotifications
-    })
-  }
+    // ✅ تحديث في Supabase
+    await markNotificationAsRead(id, user.id);
+  };
 
-  const clearAll = () => {
-    setNotifications([])
-    setUnreadCount(0)
-    localStorage.removeItem('notifications')
-  }
+  const markAllAsRead = async () => {
+    if (!user?.id) return;
+
+    // تحديث محلي فوري
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+
+    // ✅ تحديث كل الإشعارات في Supabase
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    for (const id of unreadIds) {
+      await markNotificationAsRead(id, user.id);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!user?.id) return;
+
+    const notification = notifications.find((n) => n.id === id);
+
+    // حذف محلي فوري
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+
+    if (notification && !notification.read) {
+      setUnreadCount((prevCount) => Math.max(0, prevCount - 1));
+    }
+
+    // ✅ حذف من Supabase
+    await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+  };
+
+  const clearAll = async () => {
+    if (!user?.id) return;
+
+    // مسح محلي فوري
+    setNotifications([]);
+    setUnreadCount(0);
+
+    // ✅ حذف كل الإشعارات من Supabase
+    await supabase.from("notifications").delete().eq("user_id", user.id);
+  };
 
   return (
     <NotificationContext.Provider
@@ -116,19 +223,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         markAsRead,
         markAllAsRead,
         deleteNotification,
-        clearAll
+        clearAll,
       }}
     >
       {children}
     </NotificationContext.Provider>
-  )
+  );
 }
 
 export function useNotifications() {
-  const context = useContext(NotificationContext)
+  const context = useContext(NotificationContext);
   if (!context) {
     // Return default values during SSR/build time
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {
         notifications: [],
         unreadCount: 0,
@@ -137,9 +244,11 @@ export function useNotifications() {
         markAllAsRead: () => {},
         deleteNotification: () => {},
         clearAll: () => {},
-      }
+      };
     }
-    throw new Error('useNotifications must be used within NotificationProvider')
+    throw new Error(
+      "useNotifications must be used within NotificationProvider",
+    );
   }
-  return context
+  return context;
 }

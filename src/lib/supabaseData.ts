@@ -503,3 +503,208 @@ export async function markNotificationAsRead(
     return false;
   }
 }
+
+// =====================================================
+// User Messages - الرسائل بين المستخدمين
+// =====================================================
+
+export interface UserMessage {
+  id?: string;
+  sender_id?: string;
+  recipient_id?: string;
+  message: string;
+  is_read?: boolean;
+  created_at?: string;
+}
+
+/**
+ * إرسال رسالة لمستخدم آخر
+ */
+export async function sendMessage(
+  senderId: string,
+  recipientId: string,
+  message: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("user_messages").insert({
+      sender_id: senderId,
+      recipient_id: recipientId,
+      message,
+    });
+
+    if (error) {
+      console.error("Error sending message:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in sendMessage:", error);
+    return false;
+  }
+}
+
+/**
+ * الحصول على المحادثة بين مستخدمين
+ */
+export async function getConversation(
+  userId1: string,
+  userId2: string,
+): Promise<UserMessage[]> {
+  try {
+    const { data, error } = await supabase
+      .from("user_messages")
+      .select("*")
+      .or(
+        `and(sender_id.eq.${userId1},recipient_id.eq.${userId2}),and(sender_id.eq.${userId2},recipient_id.eq.${userId1})`,
+      )
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching conversation:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getConversation:", error);
+    return [];
+  }
+}
+
+/**
+ * الحصول على جميع المحادثات للمستخدم
+ */
+export async function getUserConversationsList(
+  userId: string,
+): Promise<
+  {
+    userId: string;
+    lastMessage: string;
+    timestamp: string;
+    unreadCount: number;
+  }[]
+> {
+  try {
+    // الحصول على آخر رسالة مع كل مستخدم
+    const { data, error } = await supabase.rpc("get_user_conversations", {
+      p_user_id: userId,
+    });
+
+    if (error) {
+      console.error("Error fetching conversations list:", error);
+      // Fallback: get all messages manually
+      const { data: messages } = await supabase
+        .from("user_messages")
+        .select("*")
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+        .order("created_at", { ascending: false });
+
+      if (!messages) return [];
+
+      // Group by conversation partner
+      const conversationsMap = new Map();
+      messages.forEach((msg) => {
+        const partnerId =
+          msg.sender_id === userId ? msg.recipient_id : msg.sender_id;
+        if (!conversationsMap.has(partnerId)) {
+          conversationsMap.set(partnerId, {
+            userId: partnerId,
+            lastMessage: msg.message,
+            timestamp: msg.created_at,
+            unreadCount: msg.recipient_id === userId && !msg.is_read ? 1 : 0,
+          });
+        } else if (msg.recipient_id === userId && !msg.is_read) {
+          const conv = conversationsMap.get(partnerId);
+          conv.unreadCount++;
+        }
+      });
+
+      return Array.from(conversationsMap.values());
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in getUserConversationsList:", error);
+    return [];
+  }
+}
+
+/**
+ * تمييز الرسالة كمقروءة
+ */
+export async function markMessageAsRead(
+  messageId: string,
+  userId: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("user_messages")
+      .update({ is_read: true })
+      .eq("id", messageId)
+      .eq("recipient_id", userId);
+
+    if (error) {
+      console.error("Error marking message as read:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in markMessageAsRead:", error);
+    return false;
+  }
+}
+
+/**
+ * تمييز جميع الرسائل من مستخدم معين كمقروءة
+ */
+export async function markConversationAsRead(
+  userId: string,
+  partnerId: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("user_messages")
+      .update({ is_read: true })
+      .eq("sender_id", partnerId)
+      .eq("recipient_id", userId)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error("Error marking conversation as read:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in markConversationAsRead:", error);
+    return false;
+  }
+}
+
+/**
+ * حذف رسالة
+ */
+export async function deleteMessage(
+  messageId: string,
+  userId: string,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("user_messages")
+      .delete()
+      .eq("id", messageId)
+      .eq("sender_id", userId);
+
+    if (error) {
+      console.error("Error deleting message:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in deleteMessage:", error);
+    return false;
+  }
+}

@@ -1,20 +1,20 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const response = NextResponse.next()
-  
+  const res = NextResponse.next();
+  const pathname = request.nextUrl.pathname;
+
   // Force dynamic rendering for dashboard routes
-  // Prevent static generation by setting cache headers
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    response.headers.set('Cache-Control', 'no-store, must-revalidate')
-    response.headers.set('CDN-Cache-Control', 'no-store')
-    response.headers.set('Vercel-CDN-Cache-Control', 'no-store')
+  if (pathname.startsWith("/dashboard")) {
+    res.headers.set("Cache-Control", "no-store, must-revalidate");
+    res.headers.set("CDN-Cache-Control", "no-store");
+    res.headers.set("Vercel-CDN-Cache-Control", "no-store");
   }
-  
-  return response
+
+  return res;
 }
 
 export const config = {
-  matcher: '/dashboard/:path*',
-}
+  matcher: ["/dashboard/:path*", "/login", "/register", "/reset-password"],
+};

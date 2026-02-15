@@ -23,12 +23,16 @@ export default function RegisterPage() {
     userType: "student" as "student" | "professor" | "admin",
   });
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { register } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
+    setInfo("");
 
     if (formData.password !== formData.confirmPassword) {
       setError("كلمات المرور غير متطابقة");
@@ -40,6 +44,8 @@ export default function RegisterPage() {
       return;
     }
 
+    setIsSubmitting(true);
+
     const result = await register(
       formData.name,
       formData.email,
@@ -49,9 +55,13 @@ export default function RegisterPage() {
 
     if (result.success) {
       router.push("/dashboard");
+    } else if (result.error?.includes("تأكيد البريد الإلكتروني")) {
+      setInfo(result.error);
     } else {
       setError(result.error || "حدث خطأ أثناء إنشاء الحساب");
     }
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -151,6 +161,7 @@ export default function RegisterPage() {
                   }
                   className="input-field pr-12"
                   placeholder="أدخل اسمك الكامل"
+                  disabled={isSubmitting}
                   required
                 />
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-dark-muted" />
@@ -171,6 +182,7 @@ export default function RegisterPage() {
                   }
                   className="input-field pr-12"
                   placeholder="your.email@university.edu"
+                  disabled={isSubmitting}
                   required
                 />
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-dark-muted" />
@@ -191,6 +203,7 @@ export default function RegisterPage() {
                   }
                   className="input-field pr-12"
                   placeholder="••••••••"
+                  disabled={isSubmitting}
                   required
                 />
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-dark-muted" />
@@ -214,6 +227,7 @@ export default function RegisterPage() {
                   }
                   className="input-field pr-12"
                   placeholder="••••••••"
+                  disabled={isSubmitting}
                   required
                 />
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-dark-muted" />
@@ -256,14 +270,25 @@ export default function RegisterPage() {
               </motion.div>
             )}
 
+            {info && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-google text-blue-700 dark:text-blue-300 text-sm text-center"
+              >
+                {info}
+              </motion.div>
+            )}
+
             {/* زر التسجيل */}
             <motion.button
               type="submit"
-              className="btn-primary w-full text-lg"
+              disabled={isSubmitting}
+              className="btn-primary w-full text-lg disabled:opacity-70 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              إنشاء الحساب
+              {isSubmitting ? "جارٍ إنشاء الحساب..." : "إنشاء الحساب"}
             </motion.button>
 
             {/* رابط تسجيل الدخول */}

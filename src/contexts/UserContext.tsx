@@ -38,6 +38,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const mapAuthUserToLocalUser = (
+    authUser: SupabaseUser,
+    fallbackRole: UserRole = "student",
+  ): User => ({
+    id: authUser.id,
+    name: (authUser.user_metadata?.name as string) || "مستخدم",
+    email: authUser.email || "",
+    role: (authUser.user_metadata?.user_type as UserRole) || fallbackRole,
+  });
+
   // تحميل بيانات المستخدم من قاعدة البيانات
   const loadUserData = async (authUser: SupabaseUser): Promise<boolean> => {
     try {
@@ -68,12 +78,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           "User in Auth but missing in public.users. Creating record...",
         );
 
-        const { error: insertError } = await supabase.from("users").insert({
-          id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata.name || "مستخدم",
-          user_type: authUser.user_metadata.user_type || "student",
-        });
+        const { error: insertError } = await supabase.from("users").upsert(
+          {
+            id: authUser.id,
+            email: authUser.email!,
+            name: authUser.user_metadata.name || "مستخدم",
+            user_type: authUser.user_metadata.user_type || "student",
+          },
+          {
+            onConflict: "id",
+          },
+        );
 
         if (insertError) {
           console.error("Failed to create user record:", insertError);
@@ -156,10 +171,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (loaded) {
           return { success: true };
         } else {
-          return {
-            success: false,
-            error: "فشل في تحميل بيانات المستخدم. يرجى المحاولة مرة أخرى.",
-          };
+          const fallbackUser = mapAuthUserToLocalUser(
+            data.user,
+            role || "student",
+          );
+          setUser(fallbackUser);
+          return { success: true };
         }
       }
 
@@ -216,16 +233,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created in Auth:", data.user.id);
 
+        if (!data.session) {
+          return {
+            success: false,
+            error:
+              "تم إنشاء الحساب بنجاح. يرجى تأكيد البريد الإلكتروني أولاً ثم تسجيل الدخول.",
+          };
+        }
+
         // انتظار قليل للسماح بتنفيذ triggers
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         // إنشاء السجل مباشرة في جدول users
-        const { error: insertError } = await supabase.from("users").insert({
-          id: data.user.id,
-          email: data.user.email!,
-          name: name,
-          user_type: role,
-        });
+        const { error: insertError } = await supabase.from("users").upsert(
+          {
+            id: data.user.id,
+            email: data.user.email!,
+            name: name,
+            user_type: role,
+          },
+          {
+            onConflict: "id",
+          },
+        );
 
         if (insertError && !insertError.message?.includes("duplicate")) {
           console.error("Insert error:", insertError);

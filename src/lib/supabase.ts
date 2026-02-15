@@ -183,6 +183,59 @@ export interface Database {
           response?: string;
         };
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: "info" | "warning" | "success" | "error";
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type?: "info" | "warning" | "success" | "error";
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          message?: string;
+          type?: "info" | "warning" | "success" | "error";
+          is_read?: boolean;
+        };
+      };
+      user_messages: {
+        Row: {
+          id: string;
+          sender_id: string;
+          recipient_id: string;
+          message: string;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sender_id: string;
+          recipient_id: string;
+          message: string;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sender_id?: string;
+          recipient_id?: string;
+          message?: string;
+          is_read?: boolean;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

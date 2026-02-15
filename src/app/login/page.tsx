@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -12,13 +12,16 @@ import {
   GraduationCap,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/contexts/UserContext";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [userType, setUserType] = useState<"student" | "professor" | "admin">(
     "student",
   );
@@ -28,6 +31,9 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     setError("");
 
     console.log("Login attempt:", { email, userType });
@@ -37,13 +43,15 @@ export default function LoginPage() {
       console.log("Login result:", result);
 
       if (result.success) {
-        router.push("/dashboard");
+        router.push(redirectTo);
       } else {
         setError(result.error || "البريد الإلكتروني أو كلمة المرور غير صحيحة");
       }
     } catch (err) {
       console.error("Login error:", err);
       setError("حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -220,6 +228,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field pr-12"
                   placeholder="your.email@university.edu"
+                  disabled={isSubmitting}
                   required
                 />
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -238,12 +247,14 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="input-field pr-12"
                   placeholder="••••••••"
+                  disabled={isSubmitting}
                   required
                 />
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isSubmitting}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-muted hover:text-medad-ink dark:hover:text-dark-text transition-colors"
                 >
                   {showPassword ? (
@@ -292,11 +303,12 @@ export default function LoginPage() {
             <motion.button
               variants={itemVariants}
               type="submit"
-              className="btn-primary w-full text-lg"
+              disabled={isSubmitting}
+              className="btn-primary w-full text-lg disabled:opacity-70 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              تسجيل الدخول
+              {isSubmitting ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
             </motion.button>
 
             {/* حسابات تجريبية */}

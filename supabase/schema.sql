@@ -73,6 +73,16 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- إنشاء جدول المحادثات بين المستخدمين
+CREATE TABLE IF NOT EXISTS public.user_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sender_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    recipient_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ======================================
 -- إنشاء الفهارس (Indexes) لتحسين الأداء
 -- ======================================
@@ -84,6 +94,9 @@ CREATE INDEX IF NOT EXISTS idx_schedule_tasks_user_id ON public.schedule_tasks(u
 CREATE INDEX IF NOT EXISTS idx_schedule_tasks_research_id ON public.schedule_tasks(research_id);
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id ON public.ai_conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_messages_sender_id ON public.user_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_user_messages_recipient_id ON public.user_messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_user_messages_created_at ON public.user_messages(created_at);
 
 -- ======================================
 -- Row Level Security (RLS) - أمان على مستوى الصفوف
@@ -96,6 +109,7 @@ ALTER TABLE public.sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.schedule_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_messages ENABLE ROW LEVEL SECURITY;
 
 -- سياسات جدول المستخدمين
 CREATE POLICY "Users can view their own data" ON public.users
@@ -169,6 +183,19 @@ CREATE POLICY "Users can update their own notifications" ON public.notifications
 CREATE POLICY "Users can delete their own notifications" ON public.notifications
     FOR DELETE USING (auth.uid() = user_id);
 
+-- سياسات جدول الرسائل بين المستخدمين
+CREATE POLICY "Users can view messages they sent or received" ON public.user_messages
+    FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
+
+CREATE POLICY "Users can send messages" ON public.user_messages
+    FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+CREATE POLICY "Users can update messages they received" ON public.user_messages
+    FOR UPDATE USING (auth.uid() = recipient_id);
+
+CREATE POLICY "Users can delete messages they sent" ON public.user_messages
+    FOR DELETE USING (auth.uid() = sender_id);
+
 -- ======================================
 -- الدوال (Functions) والمحفزات (Triggers)
 -- ======================================
@@ -227,3 +254,4 @@ COMMENT ON TABLE public.sources IS 'جدول المصادر - المراجع و�
 COMMENT ON TABLE public.schedule_tasks IS 'جدول المهام والجدول الزمني';
 COMMENT ON TABLE public.ai_conversations IS 'جدول محادثات الذكاء الاصطناعي';
 COMMENT ON TABLE public.notifications IS 'جدول الإشعارات';
+COMMENT ON TABLE public.user_messages IS 'جدول الرسائل بين المستخدمين';
