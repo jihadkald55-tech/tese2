@@ -1,56 +1,40 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-      if (data.user) {
-        console.log("User created in Auth:", data.user.id);
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
-        // انتظر قليلاً لعمل الـ trigger
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+export type UserRole = "student" | "professor" | "admin";
 
-        // محاولة تحميل بيانات المستخدم من جدول users
-        let loaded = await loadUserData(data.user);
-        console.log("First load attempt:", loaded);
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
 
-        if (loaded) return { success: true };
+interface UserContextType {
+  user: User | null;
+  login: (
+    email: string,
+    password: string,
+    role?: UserRole,
+  ) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole,
+  ) => Promise<{ success: boolean; error?: string }>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
+  isAuthenticated: boolean;
+  loading: boolean;
+}
 
-        // إذا لم يتم تحميل البيانات، حاول تسجيل الدخول تلقائياً للحصول على جلسة
-        try {
-          console.log("Attempting automatic sign-in to obtain session...");
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
-          console.log("Auto sign-in response:", { signInData, signInError });
-
-          if (signInError) throw signInError;
-
-          // بعد الحصول على الجلسة، حاول إدراج/تحميل سجل المستخدم مرة أخرى
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          loaded = await loadUserData(signInData.user as SupabaseUser);
-          console.log("Load after auto sign-in:", loaded);
-          if (loaded) return { success: true };
-        } catch (err) {
-          console.warn("Auto sign-in failed or could not load user data:", err);
-        }
-
-        // محاولات إضافية متتالية
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        loaded = await loadUserData(data.user);
-        if (loaded) return { success: true };
-
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        loaded = await loadUserData(data.user);
-        if (loaded) return { success: true };
-
-        return {
-          success: false,
-          error: "تم إنشاء الحساب ولكن فشل تحميل البيانات. يرجى تسجيل الدخول.",
-        };
-      }
+export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
