@@ -195,7 +195,7 @@ export default function DashboardPage() {
     {
       id: 1,
       title: "الطلاب المسجلين",
-      value: user?.students?.length || 0,
+      value: 0,
       icon: Users,
       color: "from-blue-500 to-blue-600",
       change: "تحت إشرافك",
@@ -204,7 +204,7 @@ export default function DashboardPage() {
     {
       id: 2,
       title: "الأبحاث النشطة",
-      value: user?.students?.length || 0,
+      value: 0,
       icon: FileText,
       color: "from-green-500 to-green-600",
       change: "قيد التنفيذ",
@@ -296,7 +296,7 @@ export default function DashboardPage() {
           </p>
         ) : user?.role === "professor" ? (
           <p className="text-gray-600 dark:text-dark-muted text-lg">
-            لديك {user.students?.length || 0} طالب تحت إشرافك
+            لديك 0 طالب تحت إشرافك
           </p>
         ) : (
           <p className="text-gray-600 dark:text-dark-muted text-lg">
