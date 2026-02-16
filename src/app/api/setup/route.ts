@@ -63,8 +63,6 @@ export async function GET() {
 
     for (const account of TEST_ACCOUNTS) {
       try {
-        console.log(`Creating account for: ${account.email}`);
-
         // 1. إنشاء المستخدم في Auth
         const { data: authData, error: authError } =
           await supabase.auth.admin.createUser({
@@ -79,7 +77,6 @@ export async function GET() {
 
         if (authError) {
           if (authError.message?.includes("already exists")) {
-            console.log(`Account already exists: ${account.email}`);
             results.push({
               email: account.email,
               status: "exists",

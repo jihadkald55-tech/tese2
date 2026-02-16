@@ -99,7 +99,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Notification change detected:", payload);
           loadNotifications();
         },
       )

@@ -36,11 +36,8 @@ export default function LoginPageClient() {
     setIsSubmitting(true);
     setError("");
 
-    console.log("Login attempt:", { email, userType });
-
     try {
       const result = await login(email, password, userType);
-      console.log("Login result:", result);
 
       if (result.success) {
         router.push(redirectTo);

@@ -75,51 +75,6 @@ export default function SetupPage() {
           </div>
         </div>
 
-        {/* Test Credentials */}
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-800 rounded-xl p-6 mb-8">
-          <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-300 mb-4">
-            📝 حسابات الاختبار الافتراضية
-          </h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            {[
-              {
-                type: "طالب",
-                email: "student@university.edu",
-                password: "123456",
-              },
-              {
-                type: "أستاذ",
-                email: "prof@university.edu",
-                password: "123456",
-              },
-              {
-                type: "مدير",
-                email: "admin@university.edu",
-                password: "123456",
-              },
-            ].map((account, idx) => (
-              <div
-                key={idx}
-                className="bg-white dark:bg-dark-card p-4 rounded-lg border border-yellow-100 dark:border-yellow-900"
-              >
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                  {account.type}
-                </p>
-                <p className="font-mono text-sm text-gray-900 dark:text-white mt-1">
-                  {account.email}
-                </p>
-                <p className="font-mono text-sm text-gray-900 dark:text-white">
-                  {account.password}
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="text-sm text-yellow-700 dark:text-yellow-200 mt-4">
-            ⚠️ هذه الحسابات قد تكون موجودة أم لا في النظام الحالي. استخدم الخيار
-            1 أو 2 أعلاه لضمان وجود حسابات.
-          </p>
-        </div>
-
         {/* Back to Login */}
         <div className="text-center">
           <Link

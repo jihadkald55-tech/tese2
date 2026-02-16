@@ -51,20 +51,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // تحميل بيانات المستخدم من قاعدة البيانات
   const loadUserData = async (authUser: SupabaseUser): Promise<User | null> => {
     try {
-      console.log("Loading user data for:", authUser.id, authUser.email);
-
       const { data, error } = await supabase
         .from("users")
         .select("*")
         .eq("id", authUser.id)
         .single();
 
-      console.log("User data query result:", { data, error });
-
       if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
-        console.log("User data found:", data);
         const userData: User = {
           id: data.id,
           name: data.name,
@@ -75,10 +70,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return userData;
       } else {
         // المستخدم موجود في Auth ولكن غير موجود في جدول users
-        console.warn(
-          "User in Auth but missing in public.users. Creating record...",
-        );
-
         const { error: insertError } = await supabase.from("users").upsert(
           {
             id: authUser.id,
@@ -104,7 +95,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (newData) {
-          console.log("User record created successfully:", newData);
           const userData: User = {
             id: newData.id,
             name: newData.name,
@@ -152,7 +142,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     role?: UserRole,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log("UserContext: Login started for", email);
       setLoading(true);
 
       // إنشاء timeout للعملية
@@ -167,14 +156,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         });
 
         clearTimeout(timeoutId);
-        console.log("Supabase auth response:", { data, error });
 
         if (error) throw error;
 
         if (data.user) {
-          console.log("User authenticated, loading user data...");
           const userData = await loadUserData(data.user);
-          console.log("User data loaded:", userData);
 
           if (userData) {
             // ✅ التحقق من نوع الحساب (Role Validation)
@@ -272,13 +258,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        console.log("User created in Auth:", data.user.id);
-
         let session = data.session;
 
         // إذا لم توجد جلسة، نحاول تسجيل الدخول مباشرة
         if (!session) {
-          console.log("No session from signup, attempting auto-login...");
           const { data: loginData, error: loginError } =
             await supabase.auth.signInWithPassword({
               email,
@@ -286,7 +269,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             });
 
           if (loginError) {
-            console.error("Auto-login failed:", loginError);
             return {
               success: false,
               error:
@@ -295,7 +277,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           }
 
           session = loginData.session;
-          console.log("Auto-login successful");
         }
 
         // انتظار قليل للسماح بتنفيذ triggers
