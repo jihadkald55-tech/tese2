@@ -125,6 +125,14 @@ ALTER TABLE public.user_messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own data" ON public.users
     FOR SELECT USING (auth.uid() = id);
 
+CREATE POLICY "Admins can view all users" ON public.users
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.users 
+            WHERE id = auth.uid() AND user_type = 'admin'
+        )
+    );
+
 CREATE POLICY "Users can insert their own data" ON public.users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
@@ -133,6 +141,22 @@ CREATE POLICY "Authenticated users can insert" ON public.users
 
 CREATE POLICY "Users can update their own data" ON public.users
     FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Admins can update all users" ON public.users
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM public.users 
+            WHERE id = auth.uid() AND user_type = 'admin'
+        )
+    );
+
+CREATE POLICY "Admins can delete users" ON public.users
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM public.users 
+            WHERE id = auth.uid() AND user_type = 'admin'
+        )
+    );
 
 -- سياسات جدول مشاريع البحث
 CREATE POLICY "Users can view their own research projects" ON public.research_projects
@@ -463,3 +487,29 @@ COMMENT ON TABLE public.chapter_submissions IS 'جدول رفع الفصول ل�
 COMMENT ON TABLE public.review_comments IS 'جدول تعليقات المراجعة من المشرفين';
 COMMENT ON TABLE public.system_announcements IS 'جدول إعلانات المدير العامة';
 COMMENT ON TABLE public.progress_stats IS 'جدول إحصائيات تقدم الطلاب';
+
+-- ======================================
+-- مزامنة المستخدمين الموجودين من auth.users
+-- ======================================
+
+-- دالة لمزامنة جميع المستخدمين الموجودين في auth.users إلى public.users
+CREATE OR REPLACE FUNCTION public.sync_existing_users()
+RETURNS void AS $$
+BEGIN
+    INSERT INTO public.users (id, email, name, user_type, created_at, updated_at)
+    SELECT 
+        au.id,
+        au.email,
+        COALESCE(au.raw_user_meta_data->>'name', 'مستخدم'),
+        COALESCE(au.raw_user_meta_data->>'user_type', 'student'),
+        au.created_at,
+        au.updated_at
+    FROM auth.users au
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.users pu WHERE pu.id = au.id
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- تنفيذ المزامنة
+SELECT public.sync_existing_users();
