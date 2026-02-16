@@ -25,6 +25,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// Supabase Admin Client (للاستخدام في API routes فقط)
+// يتجاوز سياسات RLS - استخدمه بحذر!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : supabase; // fallback to regular client if service key not available
+
 // أنواع البيانات TypeScript
 export type Json =
   | string

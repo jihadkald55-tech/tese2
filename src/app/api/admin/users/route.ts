@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // GET: جلب جميع المستخدمين
 export async function GET(request: NextRequest) {
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userType = searchParams.get("userType"); // student, professor, admin
 
-    let query = supabase
+    let query = supabaseAdmin
       .from("users")
       .select("*")
       .order("created_at", { ascending: false });
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("خطأ في جلب المستخدمين:", error);
       return NextResponse.json(
-        { error: "فشل جلب المستخدمين" },
+        { error: "فشل جلب المستخدمين", details: error.message },
         { status: 500 },
       );
     }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // التحقق من عدم وجود البريد الإلكتروني
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
       .eq("email", email)
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // إنشاء المستخدم في جدول المستخدمين
-    const { data: newUser, error: insertError } = await supabase
+    const { data: newUser, error: insertError } = await supabaseAdmin
       .from("users")
       .insert({
         email,
@@ -113,7 +113,7 @@ export async function PUT(request: NextRequest) {
     if (typeof isActive === "boolean") updateData.is_active = isActive;
     updateData.updated_at = new Date().toISOString();
 
-    const { data: updatedUser, error } = await supabase
+    const { data: updatedUser, error } = await supabaseAdmin
       .from("users")
       .update(updateData)
       .eq("id", userId)
@@ -152,7 +152,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase.from("users").delete().eq("id", userId);
+    const { error } = await supabaseAdmin
+      .from("users")
+      .delete()
+      .eq("id", userId);
 
     if (error) {
       console.error("خطأ في حذف المستخدم:", error);
