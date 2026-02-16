@@ -55,13 +55,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   // ✅ تحميل الإشعارات من Supabase
-  useEffect(() => {
-    setMounted(true);
-    if (!user?.id) return;
-
-    loadNotifications();
-  }, [user?.id]);
-
   const loadNotifications = async () => {
     if (!user?.id) return;
 
@@ -82,6 +75,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setUnreadCount(0);
     }
   };
+
+  // ✅ تحميل الإشعارات من Supabase عند تحميل المكون
+  useEffect(() => {
+    setMounted(true);
+    if (!user?.id) return;
+
+    loadNotifications();
+  }, [user?.id, loadNotifications]);
 
   // ✅ الاستماع للتحديثات في الوقت الفعلي
   useEffect(() => {
@@ -107,7 +108,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, loadNotifications]);
 
   const addNotification = async (
     notification: Omit<Notification, "id" | "timestamp" | "read">,

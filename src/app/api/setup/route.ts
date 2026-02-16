@@ -3,30 +3,13 @@
  * إعداد الحسابات الاختبارية
  *
  * استخدام:
- * 1. نسخ هذا الملف إلى src/app/api/setup/route.ts
+ * 1. أضف SUPABASE_SERVICE_KEY إلى .env.local
  * 2. زيارة: http://localhost:3000/api/setup
  * 3. سيتم إنشاء الحسابات الاختبارية
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-// إنشاء عميل Supabase مع مفتاح الخدمة (للعمليات الإدارية)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error(
-    "Missing Supabase environment variables for setup. Please provide SUPABASE_SERVICE_KEY.",
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 
 const TEST_ACCOUNTS = [
   {
@@ -50,6 +33,31 @@ const TEST_ACCOUNTS = [
 ];
 
 export async function GET() {
+  // تحقق من وجود مفتاح الخدمة
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "مفتاح الخدمة غير مكون. الرجاء إضافة SUPABASE_SERVICE_KEY إلى .env.local",
+        message:
+          "للحصول على المفتاح: Supabase Dashboard → Settings → API → Service role key",
+      },
+      { status: 500 },
+    );
+  }
+
+  // إنشاء عميل Supabase مع مفتاح الخدمة (للعمليات الإدارية)
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
   try {
     const results = [];
 

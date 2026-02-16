@@ -30,7 +30,7 @@ export default function SetupPage() {
                 <li>اضغط على رابط التسجيل أدناه</li>
                 <li>أدخل بيانات تسجيل جديدة</li>
                 <li>اختر نوع المستخدم (طالب/أستاذ/مدير)</li>
-                <li>انقر "إنشاء الحساب"</li>
+                <li>انقر &quot;إنشاء الحساب&quot;</li>
               </ol>
               <Link
                 href="/register"
@@ -64,7 +64,7 @@ export default function SetupPage() {
                   <p className="mb-2">
                     1. اذهب إلى Supabase Dashboard → Settings → API
                   </p>
-                  <p className="mb-2">2. انسخ "Service role key"</p>
+                  <p className="mb-2">2. انسخ &quot;Service role key&quot;</p>
                   <p className="mb-2">3. أضفه في .env.local</p>
                   <code className="block bg-gray-200 dark:bg-gray-900 p-2 rounded mt-2 text-xs">
                     SUPABASE_SERVICE_KEY=your_key_here
