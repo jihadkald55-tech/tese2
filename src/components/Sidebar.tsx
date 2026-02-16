@@ -41,7 +41,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useUser();
 
-  const baseMenuItems: MenuItem[] = [
+  // قوائم الطلاب
+  const studentMenuItems: MenuItem[] = [
     { id: "home", label: "الرئيسية", icon: Home, href: "/dashboard" },
     {
       id: "research",
@@ -55,12 +56,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       icon: BookOpen,
       href: "/dashboard/sources",
     },
-    {
-      id: "gallery",
-      label: "استكشف",
-      icon: Award,
-      href: "/dashboard/gallery",
-    },
+    { id: "gallery", label: "استكشف", icon: Award, href: "/dashboard/gallery" },
     {
       id: "chat",
       label: "المحادثات",
@@ -82,20 +78,89 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     },
   ];
 
-  // إضافة إدارة النشر للمشرفين فقط
-  const professorItems: MenuItem[] =
-    user?.role === "professor"
-      ? [
-          {
-            id: "publish",
-            label: "إدارة النشر",
-            icon: Sparkles,
-            href: "/dashboard/publish",
-          },
-        ]
-      : [];
+  // قوائم المشرفين
+  const professorMenuItems: MenuItem[] = [
+    { id: "home", label: "الرئيسية", icon: Home, href: "/dashboard" },
+    {
+      id: "students",
+      label: "طلابي",
+      icon: Users,
+      href: "/dashboard/supervisor/students",
+    },
+    {
+      id: "review",
+      label: "مركز المراجعة",
+      icon: MessageSquare,
+      href: "/dashboard/supervisor/review",
+    },
+    {
+      id: "publish",
+      label: "إدارة النشر",
+      icon: Sparkles,
+      href: "/dashboard/publish",
+    },
+    { id: "gallery", label: "المعرض", icon: Award, href: "/dashboard/gallery" },
+    {
+      id: "chat",
+      label: "المحادثات",
+      icon: MessageSquare,
+      href: "/dashboard/chat",
+    },
+    {
+      id: "settings",
+      label: "الإعدادات",
+      icon: Settings,
+      href: "/dashboard/settings",
+    },
+  ];
 
-  const menuItems: MenuItem[] = [...baseMenuItems, ...professorItems];
+  // قوائم المديرين
+  const adminMenuItems: MenuItem[] = [
+    {
+      id: "admin",
+      label: "لوحة التحكم",
+      icon: BarChart3,
+      href: "/dashboard/admin",
+    },
+    {
+      id: "users",
+      label: "إدارة المستخدمين",
+      icon: Users,
+      href: "/dashboard/admin/users",
+    },
+    {
+      id: "assignments",
+      label: "نظام التوزيع",
+      icon: Sparkles,
+      href: "/dashboard/admin/assignments",
+    },
+    {
+      id: "gallery",
+      label: "معرض الأبحاث",
+      icon: Award,
+      href: "/dashboard/gallery",
+    },
+    {
+      id: "announcements",
+      label: "الإعلانات",
+      icon: Bell,
+      href: "/dashboard/admin/announcements",
+    },
+    {
+      id: "settings",
+      label: "الإعدادات",
+      icon: Settings,
+      href: "/dashboard/settings",
+    },
+  ];
+
+  // اختيار القائمة حسب الدور
+  let menuItems: MenuItem[] = studentMenuItems;
+  if (user?.role === "professor") {
+    menuItems = professorMenuItems;
+  } else if (user?.role === "admin") {
+    menuItems = adminMenuItems;
+  }
 
   const bottomItems: MenuItem[] = [
     {
