@@ -118,6 +118,9 @@ CREATE POLICY "Users can view their own data" ON public.users
 CREATE POLICY "Users can insert their own data" ON public.users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
+CREATE POLICY "Authenticated users can insert" ON public.users
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = id);
+
 CREATE POLICY "Users can update their own data" ON public.users
     FOR UPDATE USING (auth.uid() = id);
 

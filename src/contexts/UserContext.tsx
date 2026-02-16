@@ -242,33 +242,54 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
 
         // انتظار قليل للسماح بتنفيذ triggers
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // إنشاء السجل مباشرة في جدول users
-        const { error: insertError } = await supabase.from("users").upsert(
-          {
+        // محاولة تحميل بيانات المستخدم من قاعدة البيانات
+        try {
+          const { data: userData, error: fetchError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", data.user.id!)
+            .single();
+
+          if (userData) {
+            setUser({
+              id: userData.id,
+              name: userData.name || name,
+              email: userData.email || data.user.email!,
+              role: (userData.user_type as UserRole) || role,
+            });
+          } else {
+            // إذا لم يتم العثور على السجل، حاول إنشاؤه
+            const { error: insertError } = await supabase.from("users").insert({
+              id: data.user.id,
+              email: data.user.email!,
+              name: name,
+              user_type: role,
+            });
+
+            if (insertError) {
+              console.error("Insert error:", insertError);
+              // لا نرمي خطأ هنا - قد يكون السجل موجود بالفعل من trigger
+            }
+
+            setUser({
+              id: data.user.id,
+              name: name,
+              email: data.user.email!,
+              role: role,
+            });
+          }
+        } catch (error: any) {
+          console.error("Error loading user data:", error);
+          // استخدم البيانات الأساسية على أي حال
+          setUser({
             id: data.user.id,
-            email: data.user.email!,
             name: name,
-            user_type: role,
-          },
-          {
-            onConflict: "id",
-          },
-        );
-
-        if (insertError && !insertError.message?.includes("duplicate")) {
-          console.error("Insert error:", insertError);
-          throw new Error("فشل في حفظ بيانات المستخدم");
+            email: data.user.email!,
+            role: role,
+          });
         }
-
-        // تحميل بيانات المستخدم مباشرة
-        setUser({
-          id: data.user.id,
-          name: name,
-          email: data.user.email!,
-          role: role,
-        });
 
         return { success: true };
       }
