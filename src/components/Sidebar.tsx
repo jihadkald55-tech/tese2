@@ -29,11 +29,19 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
 }
 
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: any;
+  href: string;
+  badge?: number;
+}
+
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useUser();
 
-  const baseMenuItems = [
+  const baseMenuItems: MenuItem[] = [
     { id: "home", label: "الرئيسية", icon: Home, href: "/dashboard" },
     {
       id: "research",
@@ -75,7 +83,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   ];
 
   // إضافة إدارة النشر للمشرفين فقط
-  const professorItems =
+  const professorItems: MenuItem[] =
     user?.role === "professor"
       ? [
           {
@@ -87,9 +95,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         ]
       : [];
 
-  const menuItems = [...baseMenuItems, ...professorItems];
+  const menuItems: MenuItem[] = [...baseMenuItems, ...professorItems];
 
-  const bottomItems = [
+  const bottomItems: MenuItem[] = [
     {
       id: "settings",
       label: "الإعدادات",
