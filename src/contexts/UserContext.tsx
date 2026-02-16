@@ -49,7 +49,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   });
 
   // تحميل بيانات المستخدم من قاعدة البيانات
-  const loadUserData = async (authUser: SupabaseUser): Promise<boolean> => {
+  const loadUserData = async (authUser: SupabaseUser): Promise<User | null> => {
     try {
       console.log("Loading user data for:", authUser.id, authUser.email);
 
@@ -65,13 +65,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (data) {
         console.log("User data found:", data);
-        setUser({
+        const userData: User = {
           id: data.id,
           name: data.name,
           email: data.email,
           role: data.user_type as UserRole,
-        });
-        return true;
+        };
+        setUser(userData);
+        return userData;
       } else {
         // المستخدم موجود في Auth ولكن غير موجود في جدول users
         console.warn(
@@ -92,7 +93,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         if (insertError) {
           console.error("Failed to create user record:", insertError);
-          return false;
+          return null;
         }
 
         // إعادة المحاولة
@@ -104,19 +105,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         if (newData) {
           console.log("User record created successfully:", newData);
-          setUser({
+          const userData: User = {
             id: newData.id,
             name: newData.name,
             email: newData.email,
             role: newData.user_type as UserRole,
-          });
-          return true;
+          };
+          setUser(userData);
+          return userData;
         }
-        return false;
+        return null;
       }
     } catch (error) {
       console.error("Error loading user data:", error);
-      return false;
+      return null;
     }
   };
 
@@ -171,10 +173,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         if (data.user) {
           console.log("User authenticated, loading user data...");
-          const loaded = await loadUserData(data.user);
-          console.log("User data loaded:", loaded);
+          const userData = await loadUserData(data.user);
+          console.log("User data loaded:", userData);
 
-          if (loaded) {
+          if (userData) {
+            // ✅ التحقق من نوع الحساب (Role Validation)
+            if (role && userData.role !== role) {
+              // تسجيل الخروج لأن النوع غير متطابق
+              await supabase.auth.signOut();
+              setUser(null);
+
+              // رسائل واضحة حسب نوع الحساب
+              const roleNames = {
+                student: "طالب",
+                professor: "أستاذ",
+                admin: "مدير",
+              };
+
+              const currentRoleName = roleNames[userData.role];
+              const attemptedRoleName = roleNames[role];
+
+              return {
+                success: false,
+                error: `هذا الحساب مسجل كـ "${currentRoleName}". يرجى تسجيل الدخول من واجهة ${currentRoleName === "طالب" ? "الطلاب" : currentRoleName === "أستاذ" ? "الأساتذة" : "المدراء"}.`,
+              };
+            }
+
             return { success: true };
           } else {
             const fallbackUser = mapAuthUserToLocalUser(
