@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     email TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     user_type TEXT NOT NULL CHECK (user_type IN ('student', 'professor', 'admin')),
+    is_active BOOLEAN DEFAULT TRUE, -- حالة المستخدم (نشط/معطل)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
