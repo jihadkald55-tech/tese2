@@ -18,6 +18,7 @@ import {
   Calendar,
   Menu,
   X,
+  Award,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,7 +33,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useUser();
 
-  const menuItems = [
+  const baseMenuItems = [
     { id: "home", label: "الرئيسية", icon: Home, href: "/dashboard" },
     {
       id: "research",
@@ -45,6 +46,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       label: "المصادر",
       icon: BookOpen,
       href: "/dashboard/sources",
+    },
+    {
+      id: "gallery",
+      label: "استكشف",
+      icon: Award,
+      href: "/dashboard/gallery",
     },
     {
       id: "chat",
@@ -66,6 +73,21 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       href: "/dashboard/schedule",
     },
   ];
+
+  // إضافة إدارة النشر للمشرفين فقط
+  const professorItems =
+    user?.role === "professor"
+      ? [
+          {
+            id: "publish",
+            label: "إدارة النشر",
+            icon: Sparkles,
+            href: "/dashboard/publish",
+          },
+        ]
+      : [];
+
+  const menuItems = [...baseMenuItems, ...professorItems];
 
   const bottomItems = [
     {

@@ -20,8 +20,15 @@ CREATE TABLE IF NOT EXISTS public.research_projects (
     title TEXT NOT NULL,
     description TEXT,
     content TEXT, -- محتوى البحث الكامل
+    summary TEXT, -- ملخص البحث
     word_count INTEGER DEFAULT 0, -- عدد الكلمات
     status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN ('planning', 'in_progress', 'completed')),
+    is_published BOOLEAN DEFAULT FALSE, -- هل البحث منشور في المعرض
+    is_featured BOOLEAN DEFAULT FALSE, -- هل البحث مميز (جوهرة)
+    published_at TIMESTAMP WITH TIME ZONE, -- تاريخ النشر
+    supervisor_id UUID REFERENCES public.users(id), -- معرف المشرف
+    supervisor_name TEXT, -- اسم المشرف
+    graduation_year INTEGER, -- سنة التخرج
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -88,6 +95,8 @@ CREATE TABLE IF NOT EXISTS public.user_messages (
 -- ======================================
 
 CREATE INDEX IF NOT EXISTS idx_research_projects_user_id ON public.research_projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_research_projects_published ON public.research_projects(is_published) WHERE is_published = TRUE;
+CREATE INDEX IF NOT EXISTS idx_research_projects_featured ON public.research_projects(is_featured) WHERE is_featured = TRUE;
 CREATE INDEX IF NOT EXISTS idx_sources_user_id ON public.sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_sources_research_id ON public.sources(research_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_tasks_user_id ON public.schedule_tasks(user_id);
@@ -128,11 +137,17 @@ CREATE POLICY "Users can update their own data" ON public.users
 CREATE POLICY "Users can view their own research projects" ON public.research_projects
     FOR SELECT USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can view published research projects" ON public.research_projects
+    FOR SELECT USING (is_published = TRUE);
+
 CREATE POLICY "Users can insert their own research projects" ON public.research_projects
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own research projects" ON public.research_projects
     FOR UPDATE USING (auth.uid() = user_id);
+    
+CREATE POLICY "Supervisors can update assigned research projects" ON public.research_projects
+    FOR UPDATE USING (auth.uid() = supervisor_id);
 
 CREATE POLICY "Users can delete their own research projects" ON public.research_projects
     FOR DELETE USING (auth.uid() = user_id);
