@@ -12,6 +12,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف المشرف مطلوب" }, { status: 400 });
     }
 
+    // جلب معرفات الطلاب المشرف عليهم
+    const { data: assignments } = await supabase
+      .from("supervisor_assignments")
+      .select("student_id")
+      .eq("supervisor_id", supervisorId);
+
+    const studentIds = assignments?.map((a: any) => a.student_id) || [];
+
+    if (studentIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        chapters: [],
+        count: 0,
+      });
+    }
+
     // جلب الفصول من الطلاب الذين يشرف عليهم
     let query = supabase
       .from("chapter_submissions")
@@ -36,13 +52,7 @@ export async function GET(request: NextRequest) {
         )
       `,
       )
-      .in(
-        "student_id",
-        supabase
-          .from("supervisor_assignments")
-          .select("student_id")
-          .eq("supervisor_id", supervisorId),
-      )
+      .in("student_id", studentIds)
       .order("submitted_at", { ascending: false });
 
     if (status) {
