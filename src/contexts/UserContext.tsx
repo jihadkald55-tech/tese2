@@ -233,12 +233,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created in Auth:", data.user.id);
 
-        if (!data.session) {
-          return {
-            success: false,
-            error:
-              "تم إنشاء الحساب بنجاح. يرجى تأكيد البريد الإلكتروني أولاً ثم تسجيل الدخول.",
-          };
+        let session = data.session;
+
+        // إذا لم توجد جلسة، نحاول تسجيل الدخول مباشرة
+        if (!session) {
+          console.log("No session from signup, attempting auto-login...");
+          const { data: loginData, error: loginError } =
+            await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+
+          if (loginError) {
+            console.error("Auto-login failed:", loginError);
+            return {
+              success: false,
+              error:
+                "تم إنشاء الحساب لكن فشل تسجيل الدخول الفوري. يرجى محاولة تسجيل الدخول يدوياً.",
+            };
+          }
+
+          session = loginData.session;
+          console.log("Auto-login successful");
         }
 
         // انتظار قليل للسماح بتنفيذ triggers
