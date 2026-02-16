@@ -153,37 +153,52 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.log("UserContext: Login started for", email);
       setLoading(true);
 
-      // تسجيل الدخول عبر Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // إنشاء timeout للعملية
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 ثانية
 
-      console.log("Supabase auth response:", { data, error });
+      try {
+        // تسجيل الدخول عبر Supabase Auth
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) throw error;
+        clearTimeout(timeoutId);
+        console.log("Supabase auth response:", { data, error });
 
-      if (data.user) {
-        console.log("User authenticated, loading user data...");
-        const loaded = await loadUserData(data.user);
-        console.log("User data loaded:", loaded);
+        if (error) throw error;
 
-        if (loaded) {
-          return { success: true };
-        } else {
-          const fallbackUser = mapAuthUserToLocalUser(
-            data.user,
-            role || "student",
-          );
-          setUser(fallbackUser);
-          return { success: true };
+        if (data.user) {
+          console.log("User authenticated, loading user data...");
+          const loaded = await loadUserData(data.user);
+          console.log("User data loaded:", loaded);
+
+          if (loaded) {
+            return { success: true };
+          } else {
+            const fallbackUser = mapAuthUserToLocalUser(
+              data.user,
+              role || "student",
+            );
+            setUser(fallbackUser);
+            return { success: true };
+          }
         }
-      }
 
-      return {
-        success: false,
-        error: "بيانات الاعتماد غير صحيحة",
-      };
+        return {
+          success: false,
+          error: "بيانات الاعتماد غير صحيحة",
+        };
+      } catch (timeoutError: any) {
+        clearTimeout(timeoutId);
+        if (timeoutError.name === "AbortError") {
+          throw new Error(
+            "انتهت مهلة الانتظار. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.",
+          );
+        }
+        throw timeoutError;
+      }
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "حدث خطأ أثناء تسجيل الدخول";
@@ -196,6 +211,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } else if (error.message?.includes("Email not confirmed")) {
         errorMessage =
           "حسابك قيد التفعيل. يرجى الانتظار لحظات ثم المحاولة مرة أخرى";
+      } else if (error.message?.includes("انتهت مهلة الانتظار")) {
+        errorMessage = error.message;
       } else if (error.message) {
         errorMessage = error.message;
       }

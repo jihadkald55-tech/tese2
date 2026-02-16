@@ -317,12 +317,21 @@ export default function LoginPageClient() {
               className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-google"
             >
               <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-2">
-                💡 حسابات تجريبية للاختبار:
+                💡 معلومات التسجيل:
               </p>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-400">
                 <p>• طالب: student@university.edu / 123456</p>
                 <p>• أستاذ: prof@university.edu / 123456</p>
                 <p>• مدير: admin@university.edu / 123456</p>
+                <p className="mt-2 text-blue-600 dark:text-blue-300 font-medium">
+                  ⚠️ إذا لم تعمل هذه الحسابات بدلاً من ذلك:
+                </p>
+                <Link
+                  href="/setup"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold underline inline-block mt-1"
+                >
+                  → أنشئ حسابًا جديدًا أو استخدم حسابات اختبارية
+                </Link>
               </div>
             </motion.div>
 
